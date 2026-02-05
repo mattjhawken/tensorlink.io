@@ -44,6 +44,32 @@ export class ApiService {
     }
   }
 
+  static async getNetworkHistory(days: number = 90): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}/network-history?days=${days}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch network history: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching network history:", error);
+      throw error;
+    }
+  }
+
+  static async getModelDemand(): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}/model-demand`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch model demand: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching model demand:", error);
+      throw error;
+    }
+  }
+
   static async checkConnectionStatus(): Promise<{ connected: boolean }> {
     try {
       const response = await fetch(`${API_URL}/status`);

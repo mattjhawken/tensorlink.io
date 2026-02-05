@@ -8,7 +8,7 @@ export const useChatSettings = () => {
   const [chatSettings, setChatSettings] = useState<ChatSettings>({
     model: "Qwen/Qwen2.5-7B-Instruct", // Default model
     temperature: 0.7,
-    maxTokens: 1024,
+    maxTokens: 4096,
     topP: 1,
     isTensorlinkConnected: false,
     isModelInitialized: false,

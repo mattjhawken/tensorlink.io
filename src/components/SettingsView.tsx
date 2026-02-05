@@ -17,12 +17,21 @@ export const SettingsView = () => {
   const [defaultTemperature, setDefaultTemperature] = useState(chatSettings.temperature)
   const [connectionMessage, setConnectionMessage] = useState('')
   const [showStats, setShowStats] = useState(false)
+  const [apiUrl, setApiUrl] = useState('https://smartnodes.ddns.net/tensorlink-api')
 
   // Update local state when chatSettings changes
   useEffect(() => {
     setDefaultModel(chatSettings.model)
     setDefaultTemperature(chatSettings.temperature)
   }, [chatSettings])
+
+  // Load saved API URL on mount
+  useEffect(() => {
+    const savedUrl = localStorage.getItem('tensorlink_api_url')
+    if (savedUrl) {
+      setApiUrl(savedUrl)
+    }
+  }, [])
 
   const handleSaveSettings = () => {
     setChatSettings({
@@ -50,6 +59,11 @@ export const SettingsView = () => {
     if (bytes === 0) return '0 Bytes'
     const i = Math.floor(Math.log(bytes) / Math.log(1024))
     return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i]
+  }
+
+  const handleSaveApiUrl = () => {
+    // Save to localStorage or state management
+    localStorage.setItem('tensorlink_api_url', apiUrl)
   }
 
   return (
@@ -136,7 +150,7 @@ export const SettingsView = () => {
             )}
           </div>
         </div>
-
+        
         <div>
           <h3 className="text-lg font-semibold mb-2">Node Status</h3>
           <div className="bg-zinc-800 rounded-lg p-4 space-y-4">
@@ -184,32 +198,38 @@ export const SettingsView = () => {
           </div>
         </div>
 
-        {/* Available Models List */}
-        {availableModels.length > 0 && (
-          <div>
-            <h3 className="text-lg font-semibold mb-2">Available Models</h3>
-            <div className="bg-zinc-800 rounded-lg p-4">
-              <div className="space-y-2">
-                {availableModels.map((model) => (
-                  <div
-                    key={model.id}
-                    className="bg-zinc-700 rounded-md p-3 flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-medium text-sm">{model.name}</div>
-                      <div className="text-xs text-white/50">{model.id}</div>
-                    </div>
-                    {model.requires_tensorlink && (
-                      <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-1 rounded">
-                        Tensorlink
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
+        {/* API Configuration */}
+        <div>
+          <h3 className="text-lg font-semibold mb-2">API Configuration</h3>
+          <div className="bg-zinc-800 rounded-lg p-4 space-y-4">
+            <div>
+              <label className="block text-sm text-white/70 mb-2">API URL</label>
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                className="w-full bg-zinc-700 rounded-md p-2 text-sm font-mono"
+                placeholder="https://example.com/api"
+              />
+              <p className="text-xs text-white/50 mt-1">
+                Enter the Tensorlink API endpoint URL
+              </p>
             </div>
+
+            <button
+              onClick={handleSaveApiUrl}
+              className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md text-sm w-full transition-colors"
+            >
+              Save API URL
+            </button>
+
+            {connectionMessage && (
+              <div className="text-sm text-center text-green-400 bg-green-900/20 py-2 px-3 rounded">
+                {connectionMessage}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Stats Modal */}

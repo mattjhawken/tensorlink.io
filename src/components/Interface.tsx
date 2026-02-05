@@ -5,6 +5,7 @@ import {
 } from '../components'
 import { useChat } from '../hooks/useChat'
 import { useChatSettings } from '../hooks/useChatSettings'
+import { useChats } from "../hooks/useChats"
 import { useMessages } from '../hooks/useMessages'
 import type { Message } from '../types/chat'
 import { useEffect, useRef, useState } from 'react'
@@ -23,8 +24,7 @@ export const Interface = () => {
   const [showSettings, setShowSettings] = useState(false)
   const settingsRef = useRef<HTMLDivElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  // Custom hooks for separated concerns
+  const { createEmptyChat } = useChats()
   const {
     availableModels,
     chatSettings,
@@ -34,7 +34,6 @@ export const Interface = () => {
     connectToTensorlink,
     getTensorlinkStats
   } = useChatSettings()
-
   const { isLoading, isSending, streamingMessageId, sendMessage } = useChat()
 
   // Refresh messages when component mounts or when a chat might have been selected
@@ -59,7 +58,14 @@ export const Interface = () => {
   }, [])
 
   const handleSendMessage = async () => {
-    if (!selectedChat) return
+    // Create a new chat if none is selected
+    let currentChat = selectedChat
+    if (!currentChat) {
+      currentChat = createEmptyChat()
+      // Wait a bit for the chat to be created and selected
+      await new Promise(resolve => setTimeout(resolve, 50))
+      refreshSelectedChat()
+    }
 
     // Pass the streaming callbacks
     const result = await sendMessage(
@@ -148,7 +154,7 @@ export const Interface = () => {
         inputMessage={inputMessage}
         setInputMessage={setInputMessage}
         onSend={handleSendMessage}
-        disabled={!selectedChat || isSending}
+        disabled={isSending}
         isSending={isSending}
         selectedChat={selectedChat}
       />

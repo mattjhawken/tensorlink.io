@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { FaRegTrashCan, FaFileContract, FaHouse } from 'react-icons/fa6'
+import { FaRegTrashCan, FaFileContract, FaInfo } from 'react-icons/fa6'
 import { twMerge } from 'tailwind-merge'
 import { useChats } from '../hooks/useChats'
 
@@ -9,17 +9,25 @@ export type ActionButtonProps = ComponentProps<'button'> & {
 
 type AppView = 'home' | 'chat' | 'settings' | 'fine-tuning'
 
-export const HomeButton = () => {
+export const HomeButton = ({
+  currentView,
+  setCurrentView
+}: {
+  currentView: AppView
+  setCurrentView: React.Dispatch<React.SetStateAction<AppView>>
+}) => {
   return (
     <div className="relative group">
       <button
-        onClick={() => window.location.href = 'https://www.smartnodes.ca/tensorlink'}
-        className="rounded-md bg-zinc-800 hover:bg-gray-600 transition-all duration-200 hover:scale-110 active:scale-95"
+        onClick={() => setCurrentView(currentView === 'home' ? 'chat' : 'home')}
+        className={`rounded-md transition-all duration-200 hover:scale-110 active:scale-95 ${
+          currentView === 'home' ? 'bg-purple-600' : 'bg-zinc-800 hover:bg-gray-600'
+        }`}
       >
-        <FaHouse className="w-4 h-4 text-white" />
+        <FaInfo className="w-4 h-4 text-white" />
       </button>
       <span className="hidden sm:block absolute left-1/2 transform -translate-x-1/2 bottom-full mb-2 opacity-0 transition-opacity group-hover:opacity-100 text-white text-xs rounded px-2 py-1 whitespace-nowrap bg-zinc-900 shadow-lg border border-white/10">
-        Home
+        Info
       </span>
     </div>
   )
@@ -204,7 +212,7 @@ export const ActionButtonsRow = ({
 
       <div className="flex space-x-1 ml-1">
         <SettingsButton currentView={currentView} setCurrentView={setCurrentView} />
-        <HomeButton />
+        <HomeButton currentView={currentView} setCurrentView={setCurrentView} />
       </div>
     </div>
   )

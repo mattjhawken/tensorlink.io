@@ -5,4 +5,4 @@ export * from "./ChatSettings";
 export * from "./Interface";
 export * from "./MessageList";
 export * from "./MessageInput";
-export * from "./HomePage";
+export * from "./HomeView";

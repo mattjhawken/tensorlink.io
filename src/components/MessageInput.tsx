@@ -20,7 +20,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (selectedChat && inputRef.current) {
+    // Always focus the input when component mounts or when a chat changes
+    if (inputRef.current) {
       inputRef.current.focus()
     }
   }, [selectedChat])
@@ -47,9 +48,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={
-            selectedChat ? 'Type your message here...' : 'Select a chat to start messaging...'
-          }
+          placeholder="Type your message here..."
           className="flex-1 bg-zinc-800 text-white rounded-lg p-3 outline-none resize-none min-h-5 max-h-20 pt-34transition-all overflow-y-auto"
           disabled={disabled}
         />
@@ -90,11 +89,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           )}
         </button>
       </div>
-      {selectedChat && (
-        <div className="text-xs text-white/50 mt-2 px-1">
-          Press Enter to send message, Shift+Enter for new line
-        </div>
-      )}
+      <div className="text-xs text-white/50 mt-2 px-1">
+        Press Enter to send message, Shift+Enter for new line
+      </div>
     </div>
   )
 }
