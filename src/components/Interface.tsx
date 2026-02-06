@@ -62,9 +62,8 @@ export const Interface = () => {
     let currentChat = selectedChat
     if (!currentChat) {
       currentChat = createEmptyChat()
-      // Wait a bit for the chat to be created and selected
-      await new Promise(resolve => setTimeout(resolve, 50))
-      refreshSelectedChat()
+      // Wait a bit for the chat to be created and selected via events
+      await new Promise(resolve => setTimeout(resolve, 100))
     }
 
     // Pass the streaming callbacks

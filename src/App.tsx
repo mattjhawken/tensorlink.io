@@ -1,5 +1,6 @@
 import {
   ActionButtonsRow,
+  NodeStatusButton,
   ChatPreviewList,
   SettingsView,
   HomeView,
@@ -87,8 +88,8 @@ const App = () => {
         className="flex-1 h-full overflow-y-auto relative bg-zinc-900/90"
       >
         {/* Mobile header - hidden on home page */}
-        {currentView !== 'home' && (
-          <div className="md:hidden flex items-center gap-3 p-1 border-b border-white/10">
+        <div className="md:hidden flex items-center justify-between gap-3 p-3 border-b border-white/10 bg-zinc-900">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
               className="px-3! rounded-md bg-zinc-800"
@@ -97,8 +98,15 @@ const App = () => {
             </button>
             <span className="text-sm font-medium">tensorlink</span>
           </div>
-        )}
-        {currentView === 'home' && <HomeView />}
+          <NodeStatusButton />
+        </div>
+
+        {
+          currentView === 'home' && <HomeView onStartChat={() => {
+            setCurrentView('chat')
+            resetScroll()
+          }}/>
+        }
         {currentView === 'settings' && <SettingsView />}
         {currentView === 'chat' && <Interface key={chatListKey} />}
       </div>

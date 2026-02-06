@@ -1,9 +1,10 @@
+import { useState, useRef, useEffect } from 'react'
 import type { ComponentProps } from 'react'
-import { FaRegTrashCan, FaFileContract, FaInfo } from 'react-icons/fa6'
+import { FaRegTrashCan, FaFileContract, FaInfo, FaCircle, FaChevronDown } from 'react-icons/fa6'
 import { twMerge } from 'tailwind-merge'
 import { useChats } from '../hooks/useChats'
 
-export type ActionButtonProps = ComponentProps<'button'> & {
+type ActionButtonProps = ComponentProps<'button'> & {
   title?: string
 }
 
@@ -214,6 +215,140 @@ export const ActionButtonsRow = ({
         <SettingsButton currentView={currentView} setCurrentView={setCurrentView} />
         <HomeButton currentView={currentView} setCurrentView={setCurrentView} />
       </div>
+    </div>
+  )
+}
+
+type NodeStatus = 'connected' | 'disconnected' | 'connecting'
+
+export const NodeStatusButton = () => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [nodeStatus, setNodeStatus] = useState<NodeStatus>('disconnected')
+  const [customNodeUrl, setCustomNodeUrl] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  const handleConnect = () => {
+    if (!customNodeUrl.trim()) return
+    
+    setNodeStatus('connecting')
+    
+    // Simulate connection attempt
+    setTimeout(() => {
+      // Replace with actual connection logic
+      setNodeStatus('connected')
+      setIsOpen(false)
+    }, 1500)
+  }
+
+  const handleDisconnect = () => {
+    setNodeStatus('disconnected')
+    setCustomNodeUrl('')
+  }
+
+  const getStatusColor = () => {
+    switch (nodeStatus) {
+      case 'connected':
+        return 'text-green-500'
+      case 'connecting':
+        return 'text-yellow-500'
+      case 'disconnected':
+        return 'text-red-500'
+    }
+  }
+
+  const getStatusText = () => {
+    switch (nodeStatus) {
+      case 'connected':
+        return 'Connected'
+      case 'connecting':
+        return 'Connecting...'
+      case 'disconnected':
+        return 'Disconnected'
+    }
+  }
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Status Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm"
+      >
+        <FaCircle className={`w-2 h-2 ${getStatusColor()} ${nodeStatus === 'connecting' ? 'animate-pulse' : ''}`} />
+        <span className="text-sm hidden sm:inline">{getStatusText()}</span>
+        <FaChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-72 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-50">
+          <div className="p-4">
+            <div className="mb-3">
+              <h3 className="text-sm font-semibold mb-1">Node Status</h3>
+              <div className="flex items-center gap-2 text-xs text-white/70">
+                <FaCircle className={`w-2 h-2 ${getStatusColor()}`} />
+                <span>{getStatusText()}</span>
+              </div>
+            </div>
+
+            <div className="border-t border-white/10 pt-3 mb-3">
+              <label className="block text-xs font-medium mb-2">
+                Connect to Personal Node
+              </label>
+              <input
+                type="text"
+                value={customNodeUrl}
+                onChange={(e) => setCustomNodeUrl(e.target.value)}
+                placeholder="wss://your-node-url.com"
+                className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                disabled={nodeStatus === 'connecting' || nodeStatus === 'connected'}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              {nodeStatus === 'connected' ? (
+                <button
+                  onClick={handleDisconnect}
+                  className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-sm rounded-md transition-colors"
+                >
+                  Disconnect
+                </button>
+              ) : (
+                <button
+                  onClick={handleConnect}
+                  disabled={!customNodeUrl.trim() || nodeStatus === 'connecting'}
+                  className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white text-sm rounded-md transition-colors"
+                >
+                  {nodeStatus === 'connecting' ? 'Connecting...' : 'Connect'}
+                </button>
+              )}
+            </div>
+
+            {nodeStatus === 'connected' && customNodeUrl && (
+              <div className="mt-3 p-2 bg-zinc-900 rounded-md">
+                <p className="text-xs text-white/50 break-all">{customNodeUrl}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

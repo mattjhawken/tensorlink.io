@@ -2,7 +2,6 @@ import { useChatSettings } from '../hooks/useChatSettings'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
-  MdNetworkCheck, 
   MdVerifiedUser, 
   MdOutlineSettings, 
   MdAccountBalanceWallet, 
@@ -52,34 +51,19 @@ function toSignificantDigits(num: number, digits: number) {
   return Math.round(num * magnitude) / magnitude
 }
 
+interface HomeViewProps {
+  onStartChat: () => void
+}
+
 // Home view component
-export const HomeView = () => {
+export const HomeView = ({ onStartChat }: HomeViewProps) => {
   const {
-    availableModels,
     tensorlinkStats,
     getTensorlinkStats,
   } = useChatSettings()
   const [networkHistory, setNetworkHistory] = useState<any>(null)
   const [modelDemand, setModelDemand] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [isDarkMode, setIsDarkMode] = useState(
-    document.documentElement.classList.contains('dark')
-  )
-
-  // Detect dark mode changes
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      const isDark = document.documentElement.classList.contains('dark')
-      setIsDarkMode(isDark)
-    })
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    })
-
-    return () => observer.disconnect()
-  }, [])
 
   // Fetch network data on mount
   useEffect(() => {
@@ -303,12 +287,70 @@ export const HomeView = () => {
   const jobsChartData = getJobsChartData()
 
   return (
-    <div className="p-6 text-white max-w-7xl mx-auto">
+    <div className="px-2 sm:px-3 py-5 text-white max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-2xl font-bold mb-2">tensorlink.io</h2>
-        <p className="text-white/60">Decentralized AI Network</p>
+
+        <p className="text-gray-700 dark:text-gray-300 text-sm md:text-md mb-5">
+          Tensorlink is an open-source Python library and peer-to-peer network for running, training, and deploying PyTorch models across distributed hardware.
+          It gives you access to powerful AI compute without depending on centralized cloud providers.
+        </p>
+
+        <p className="text-gray-700 dark:text-gray-300 text-sm md:text-md mb-5">
+          tensorlink.io builds on top of Tensorlink to provide common AI services powered by the public network, while still giving you the option to run your own node.
+          By operating a node, you can obfuscate your inputs, contribute compute to the network, earn rewards, and secure your own AI workloads at the same time.
+        </p>
+
+        <div>
+          <button
+            onClick={onStartChat}
+            className="
+              inline-flex! items-center! gap-1!
+              px-4! py-1.5! mr-1
+              rounded-md!
+              bg-white/5! hover:bg-white/10!
+              border border-white/10! hover:border-white/20!
+              text-sm! font-medium!
+              text-[#646cff]! hover:text-[#535bf2]!
+              transition-colors! transition-border! padding-0!
+            "
+          >
+            Start App
+          </button>
+          
+          <a
+            href="https://www.smartnodes.ca/tensorlink"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="
+              px-4! py-2! rounded-md
+              bg-white/5 hover:bg-white/10
+              border border-white/10
+              text-white text-sm font-medium
+              transition-colors
+            "
+          >
+            ↗ Learn about Tensorlink
+          </a>
+        </div>
       </div>
+
+      {/* Available Models List */}
+      <h2 className="text-lg sm:text-xl font-semibold mb-3 text-neutral-800 dark:text-white">
+          Active Models
+      </h2>
+      
+      <ModelDemand 
+        modelDemandData={modelDemand} 
+        loading={loading}
+        error={null}
+      />
+
+      {/* Charts and Netowrk Stats */}
+      <h3 className="text-lg sm:text-xl pt-7 font-semibold mb-3 text-neutral-800 dark:text-white">
+          Network Statistics
+      </h3>
 
       {/* Network Summary Cards */}
       <div className="mb-6">
@@ -399,21 +441,7 @@ export const HomeView = () => {
             </motion.div>
           ))}
         </div>
-      </div>
 
-      {/* Main Content Section */}
-      <div className="border border-gray-400 dark:border-gray-700 rounded-xl p-4 bg-neutral-50 dark:bg-zinc-900 shadow-sm">
-        {/* Available Models List */}
-        <ModelDemand 
-          modelDemandData={modelDemand} 
-          loading={loading}
-          error={null}
-        />
-
-        {/* Charts Grid */}
-        <h3 className="text-lg pt-3 font-semibold mb-3 text-neutral-800 dark:text-white">
-            Network Statistics
-        </h3>
         {loading ? (
           <div className="flex justify-center items-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -474,7 +502,7 @@ export const HomeView = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="mt-6"
         >
-          <h3 className="text-lg font-semibold mb-3 text-neutral-800 dark:text-white">
+          <h3 className="text-lg sm:text-xl font-semibold mb-3 text-neutral-800 dark:text-white">
             Quick Actions
           </h3>
           <div className="bg-zinc-800 rounded-lg p-4 space-y-2">

@@ -1,6 +1,6 @@
 import { MdCircle, MdAccessTime, MdTrendingUp, MdBarChart, MdSmartToy, MdSort } from "react-icons/md"
 import { motion } from "framer-motion"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 
 interface ModelData {
   model_name: string
@@ -137,13 +137,9 @@ const ModelDemand = ({ modelDemandData, loading, error }: ModelDemandProps) => {
       transition={{ duration: 0.6, delay: 0.2 }} 
       className="xs:-mx-0 -mx-1 px-1"
     >
-      <div className="rounded-xl p-2">
+      <div className="rounded-xl px-2">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <h3 className="text-lg pt-3 font-semibold mb-3 text-neutral-800 dark:text-white">
-              Active Models
-          </h3>
-          
           {/* Summary Stats */}
           <div className="flex flex-wrap gap-2">
             <div className="flex items-center bg-blue-100 dark:bg-blue-800/30 rounded-md p-1 xs:px-3 xs:py-2 border border-gray-300 dark:border-neutral-400">
