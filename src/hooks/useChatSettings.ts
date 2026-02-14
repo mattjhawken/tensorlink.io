@@ -6,7 +6,7 @@ import type { TensorlinkStats } from "../types/tensorlink";
 export const useChatSettings = () => {
   const [availableModels, setAvailableModels] = useState<Model[]>([]);
   const [chatSettings, setChatSettings] = useState<ChatSettings>({
-    model: "Qwen/Qwen2.5-7B-Instruct", // Default model
+    model: "Qwen/Qwen2.5-14B-Instruct", // Default model
     temperature: 0.7,
     maxTokens: 4096,
     topP: 1,

@@ -331,7 +331,7 @@ export const HomeView = ({ onStartChat }: HomeViewProps) => {
               transition-colors
             "
           >
-            ↗ Learn about Tensorlink
+            ↗ Learn More
           </a>
         </div>
       </div>

@@ -21,8 +21,8 @@ export class ApiService {
       console.error("Error fetching models:", error);
       return [
         {
-          id: "Qwen/Qwen2.5-7B-Instruct",
-          name: "Qwen2.5-7B",
+          id: "Qwen/Qwen2.5-14B-Instruct",
+          name: "Qwen2.5-14B",
           requires_tensorlink: true,
         },
       ];

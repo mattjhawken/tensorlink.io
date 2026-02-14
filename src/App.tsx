@@ -49,12 +49,12 @@ const App = () => {
       {/* Sidebar - hidden on home page */}
       <aside
         className={`
-          fixed md:static z-40
+          fixed z-40
           h-full bg-zinc-900
           w-[260px] shrink-0 overflow-y-auto
           border-r border-white/10
           transition-transform duration-300
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
         <div className="mb-4 mx-3 pt-5">
@@ -85,10 +85,14 @@ const App = () => {
       {/* Main Content */}
       <div
         ref={contentContainerRef}
-        className="flex-1 h-full overflow-y-auto relative bg-zinc-900/90"
+        className={`
+          flex-1 h-full overflow-y-auto relative bg-zinc-900/90
+          transition-[margin] duration-300
+          ${sidebarOpen ? 'md:ml-[260px]' : 'md:ml-0'}
+        `}
       >
         {/* Mobile header - hidden on home page */}
-        <div className="md:hidden flex items-center justify-between gap-3 p-3 border-b border-white/10 bg-zinc-900">
+        <div className="flex items-center justify-between gap-3 p-3 border-b border-white/10 bg-zinc-900">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
