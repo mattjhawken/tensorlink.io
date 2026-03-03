@@ -10,19 +10,28 @@ const API_URL = "https://smartnodes.ddns.net/tensorlink-api";
 // const API_URL = "http://192.168.2.54:64747";
 
 export class ApiService {
+  
   static async fetchModels(): Promise<Model[]> {
     try {
       const response = await fetch(`${API_URL}/models`);
       if (!response.ok) {
         throw new Error(`Failed to fetch models: ${response.status}`);
       }
-      return await response.json();
+
+      const data = await response.json();
+
+      return data.active_models.map((modelId: string) => ({
+        id: modelId,
+        name: modelId.split("/").pop() ?? modelId,
+        requires_tensorlink: true, 
+      }));
+
     } catch (error) {
       console.error("Error fetching models:", error);
       return [
         {
-          id: "Qwen/Qwen2.5-14B-Instruct",
-          name: "Qwen2.5-14B",
+          id: "Qwen/Qwen2.5-7B-Instruct",
+          name: "Qwen2.5-7B-Instruct",
           requires_tensorlink: true,
         },
       ];
@@ -89,7 +98,7 @@ export class ApiService {
     try {
       const response = await fetch(`${API_URL}/connect`);
       if (!response.ok) {
-        throw new Error(`Failed to connect to Tensorlink: ${response.status}`);
+        throw new Error(`Failed to find node on local network: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
@@ -190,6 +199,28 @@ export class ApiService {
     } catch (error) {
       console.error("Error sending message:", error);
       throw error;
+    }
+  }
+
+  static async requestModel(hfName: string, requestMinutes: number): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_URL}/request-model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          hf_name: hfName,
+          time: requestMinutes * 60,
+        }),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to request model: ${response.status} - ${errorText}`);
+      }
+      const data = await response.json();
+      return { success: true, message: data.message ?? "Model requested successfully!" };
+    } catch (error) {
+      console.error("Error requesting model:", error);
+      return { success: false, message: "Failed to request model. Please try again." };
     }
   }
 

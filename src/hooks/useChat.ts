@@ -14,6 +14,7 @@ export const useChat = () => {
     messages: Message[],
     settings: ChatSettings,
     onMessageAdd: (message: Message) => void,
+    onRemoveMessages: (ids: string[]) => void,
     onStreamUpdate?: (messageId: string, content: string) => void,
     onStreamFinalize?: (messageId: string) => void,
   ) => {
@@ -28,29 +29,27 @@ export const useChat = () => {
       timestamp: Date.now(),
     };
 
-    // Add user message immediately
+    // Add user message immediately so the user sees it
     onMessageAdd(userMessage);
     setIsLoading(true);
 
-    try {
-      // Build the messages array for the API call
-      // Include previous messages + the new user message
-      const apiMessages = [...messages, userMessage];
+    // Build the messages array for the API call
+    const apiMessages = [...messages, userMessage];
 
-      // Create assistant message placeholder for streaming
-      const assistantMessageId = crypto.randomUUID();
+    // Create assistant placeholder id now but don't add it yet
+    const assistantMessageId = crypto.randomUUID();
+
+    try {
+      // Add empty assistant message placeholder now that we're about to stream
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: "assistant",
         content: "",
         timestamp: Date.now(),
       };
-
-      // Add empty assistant message
       onMessageAdd(assistantMessage);
       setStreamingMessageId(assistantMessageId);
 
-      // Stream handler
       const handleStreamChunk = (chunk: string) => {
         if (onStreamUpdate) {
           onStreamUpdate(assistantMessageId, chunk);
@@ -65,7 +64,6 @@ export const useChat = () => {
 
       setStreamingMessageId(null);
 
-      // Finalize and save to storage
       if (onStreamFinalize) {
         onStreamFinalize(assistantMessageId);
       }
@@ -75,8 +73,27 @@ export const useChat = () => {
       console.error("🔴 API Error:", error);
       setStreamingMessageId(null);
 
-      // Return error without adding message - let the caller handle it
-      return { success: false, error };
+      // Remove the ghost user message and empty assistant placeholder
+      onRemoveMessages([userMessage.id, assistantMessageId]);
+
+      // Extract the API error detail if available
+      let errorMessage = "Failed to send message. Please try again.";
+      if (error instanceof Error) {
+        // Try to parse detail out of "API error: 503 - {"detail":"..."}"
+        const match = error.message.match(/- ({.*})/s);
+        if (match) {
+          try {
+            const parsed = JSON.parse(match[1]);
+            if (typeof parsed.detail === "string") {
+              errorMessage = parsed.detail;
+            }
+          } catch {
+            // fall through to default
+          }
+        }
+      }
+
+      return { success: false, error, errorMessage, restoredInput: messageContent };
     } finally {
       setIsLoading(false);
       setIsSending(false);

@@ -30,9 +30,8 @@ export const useChatsList = ({ onSelect }: UseChatListProps = {}) => {
   useEffect(() => {
     loadChats();
 
-    // Subscribe to chat events
     const unsubscribe = chatEvents.subscribe(() => {
-      loadChats();
+      setTimeout(() => loadChats(), 0);  // ✅ defer until after current render
     });
 
     return unsubscribe;

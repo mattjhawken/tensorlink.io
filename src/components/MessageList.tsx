@@ -11,7 +11,7 @@ const prismStyle: { [key: string]: CSSProperties } = oneDark
 interface MessageListProps {
   messages: Message[]
   isLoading: boolean
-  onFeedback: (index: number, feedback: 'positive' | 'negative') => void
+  onFeedback: (index: number, feedback: 'positive' | 'negative' | null) => void
   onRegenerate?: (index: number) => void
   onEdit?: (index: number, newContent: string) => void
   streamingMessageId?: string | null
@@ -269,13 +269,50 @@ export const MessageList: React.FC<MessageListProps> = ({
                   message.role === 'user'
                     ? 'bg-blue-600/70 text-white rounded-br-none backdrop-blur-sm'
                     : message.role === 'system'
-                    ? 'bg-gray-600/70 text-white backdrop-blur-sm'
-                    : 'bg-gray-800/90 text-white rounded-bl-none backdrop-blur-sm border border-gray-700/50'
+                    ? 'bg-neutral-700/70 text-white backdrop-blur-sm'
+                    : 'bg-neutral-950/90 text-white rounded-bl-none backdrop-blur-sm border border-gray-700/50'
                 }`}
               >
+
+                {/* Message content */}
+                <div className="py-1 pb-1.5">
+                  {editingId === message.id ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="w-full bg-gray-800 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] font-mono text-sm"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(index)}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="message-content">
+                      <MarkdownRenderer content={message.content || ''} />
+                      {isStreaming && (
+                        <span className="inline-block w-2 h-4 ml-1 bg-white/70 animate-pulse rounded-sm" />
+                      )}
+                    </div>
+                  )}
+
+                </div>
+
                 {/* Header with timestamp and copy button */}
                 {message.timestamp && (
-                  <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/10">
+                  <div className="flex justify-between items-center mt-1 pt-1 border-t border-white/10">
                     <span className="text-xs text-white/70 font-medium">
                       {message.role === 'user'
                         ? 'You'
@@ -308,120 +345,99 @@ export const MessageList: React.FC<MessageListProps> = ({
                       )}
                     </span>
 
-                    {/* Copy button */}
+                    {/* Action buttons */}
                     {!isStreaming && (
-                      <button
-                        onClick={() => handleCopyMessage(message.content)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-white/10 rounded"
-                        title="Copy message"
-                      >
-                        <svg
-                          className="h-3 w-3"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                )}
+                      <div className="flex items-center gap-1">
+                        {/* Assistant-only actions */}
+                        {message.role === 'assistant' && editingId !== message.id && (
+                          <>
+                            <button
+                              onClick={() =>
+                                onFeedback(
+                                  index,
+                                  message.feedback === 'positive' ? null : 'positive'
+                                )
+                              }
+                              className={`p-1.5 rounded transition-all duration-200 ${
+                                message.feedback === 'positive'
+                                  ? '!bg-green-600/70 hover:!bg-green-600 shadow-lg'
+                                  : '!bg-gray-700/80 hover:!bg-green-600'
+                              }`}
+                              title="Mark as helpful"
+                            >
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
+                                />
+                              </svg>
+                            </button>
 
-                {/* Message content */}
-                {editingId === message.id ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="w-full bg-gray-800 text-white p-3 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 min-h-[100px] font-mono text-sm"
-                      autoFocus
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleSaveEdit(index)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="message-content">
-                    <MarkdownRenderer content={message.content || ''} />
-                    {isStreaming && (
-                      <span className="inline-block w-2 h-4 ml-1 bg-white/70 animate-pulse rounded-sm" />
-                    )}
-                  </div>
-                )}
+                            <button
+                              onClick={() => 
+                                onFeedback(
+                                  index,
+                                  message.feedback === 'positive' ? null : 'negative'
+                                )
+                              }
+                              className={`p-1.5 rounded transition-all duration-200 ${
+                                message.feedback === 'negative'
+                                  ? '!bg-red-600/70 hover:!bg-red-600 shadow-lg'
+                                  : '!bg-gray-700/80 hover:!bg-red-600'
+                              }`}
+                              title="Mark as unhelpful"
+                            >
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2"
+                                />
+                              </svg>
+                            </button>
 
-                {/* Action buttons for assistant messages */}
-                {message.role === 'assistant' &&
-                  editingId !== message.id &&
-                  !isStreaming && (
-                    <div className="flex pt-2 space-x-1 justify-end border-white/10">
-                      <button
-                        onClick={() => onFeedback(index, 'positive')}
-                        className={`p-1.5 rounded transition-all duration-200 ${
-                          message.feedback === 'positive'
-                            ? 'bg-green-600 shadow-lg'
-                            : 'bg-gray-700/80 hover:bg-gray-600'
-                        }`}
-                        title="Mark as helpful"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => onFeedback(index, 'negative')}
-                        className={`p-1.5 rounded transition-all duration-200 ${
-                          message.feedback === 'negative'
-                            ? 'bg-red-600 shadow-lg'
-                            : 'bg-gray-700/80 hover:bg-gray-600'
-                        }`}
-                        title="Mark as unhelpful"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.905 0-.714.211-1.412.608-2.006L17 13V4m-7 10h2"
-                          />
-                        </svg>
-                      </button>
-                      {onRegenerate && (
+                            {onRegenerate && (
+                              <button
+                                onClick={() => onRegenerate(index)}
+                                className="p-1.5 rounded bg-gray-700/80 hover:bg-gray-600 transition-all duration-200"
+                                title="Regenerate response"
+                              >
+                                <svg
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                  />
+                                </svg>
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                        {/* Copy */}
                         <button
-                          onClick={() => onRegenerate(index)}
+                          onClick={() => handleCopyMessage(message.content)}
                           className="p-1.5 rounded bg-gray-700/80 hover:bg-gray-600 transition-all duration-200"
-                          title="Regenerate response"
+                          title="Copy message"
                         >
                           <svg
                             className="h-4 w-4"
@@ -433,13 +449,14 @@ export const MessageList: React.FC<MessageListProps> = ({
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                             />
                           </svg>
                         </button>
-                      )}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Edit button for user messages */}
                 {message.role === 'user' &&

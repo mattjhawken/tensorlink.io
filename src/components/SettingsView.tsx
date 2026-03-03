@@ -1,8 +1,8 @@
 import { useChatSettings } from '../hooks/useChatSettings'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // Settings view component
-export const SettingsView = () => {
+export const SettingsView = ({ scrollToRequestModel }: { scrollToRequestModel?: boolean }) => {
   const {
     availableModels,
     chatSettings,
@@ -11,6 +11,8 @@ export const SettingsView = () => {
     tensorlinkStats,
     connectToTensorlink,
     getTensorlinkStats,
+    requestModel,
+    refreshModels
   } = useChatSettings()
 
   const [defaultModel, setDefaultModel] = useState(chatSettings.model)
@@ -18,6 +20,11 @@ export const SettingsView = () => {
   const [connectionMessage, setConnectionMessage] = useState('')
   const [showStats, setShowStats] = useState(false)
   const [apiUrl, setApiUrl] = useState('https://smartnodes.ddns.net/tensorlink-api')
+  const [requestModelName, setRequestModelName] = useState('')
+  const [requestMinutes, setRequestMinutes] = useState(30)
+  const [requestModelMessage, setRequestModelMessage] = useState<{ text: string; success: boolean } | null>(null)
+  const [isRequestingModel, setIsRequestingModel] = useState(false)
+  const requestModelRef = useRef<HTMLDivElement>(null)
 
   // Update local state when chatSettings changes
   useEffect(() => {
@@ -33,6 +40,26 @@ export const SettingsView = () => {
     }
   }, [])
 
+  // Scroll to Request Model section if navigated from ChatSettings dropdown
+  useEffect(() => {
+    if (scrollToRequestModel && requestModelRef.current) {
+      setTimeout(() => {
+        requestModelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }, [scrollToRequestModel])
+
+  const handleRequestModel = async () => {
+    if (!requestModelName.trim()) return
+    setIsRequestingModel(true)
+    setRequestModelMessage(null)
+    const result = await requestModel(requestModelName.trim(), requestMinutes)
+    setRequestModelMessage({ text: result.message, success: result.success })
+    if (result.success) setRequestModelName('')
+    setIsRequestingModel(false)
+    setTimeout(() => setRequestModelMessage(null), 5000)
+  }
+
   const handleSaveSettings = () => {
     setChatSettings({
       ...chatSettings,
@@ -40,13 +67,13 @@ export const SettingsView = () => {
       temperature: defaultTemperature,
     })
     setConnectionMessage('Settings saved successfully!')
-    setTimeout(() => setConnectionMessage(''), 3000)
+    setTimeout(() => setConnectionMessage(''), 5000)
   }
 
   const handleConnect = async () => {
     const result = await connectToTensorlink()
     setConnectionMessage(result.message)
-    setTimeout(() => setConnectionMessage(''), 5000)
+    setTimeout(() => setConnectionMessage(''), 7000)
   }
 
   const handleViewStats = async () => {
@@ -67,7 +94,7 @@ export const SettingsView = () => {
   }
 
   return (
-    <div className="p-6 text-white max-w-4xl mx-auto">
+    <div className="p-2 sm:p-6 text-white max-w-4xl mx-auto">
       <h2 className="text-2xl font-bold mb-4">Settings</h2>
 
       <div className="space-y-6">
@@ -75,7 +102,16 @@ export const SettingsView = () => {
           <h3 className="text-lg font-semibold mb-2">Model Preferences</h3>
           <div className="bg-zinc-800 rounded-lg p-4 space-y-4">
             <div>
-              <label className="block text-sm text-white/70 mb-1">Default Model</label>
+              <div className="flex flex-row justify-between">
+                <label className="block text-sm text-white/70 mb-1">Default Model</label>   
+                <button
+                  onClick={refreshModels}
+                  className="mb-1 bg-zinc-700 hover:bg-zinc-600 text-white text-xs px-3 py-1 rounded-md transition-colors"
+                >
+                  Refresh Active Models
+                </button>
+              </div>
+
               <select
                 value={defaultModel}
                 onChange={(e) => setDefaultModel(e.target.value)}
@@ -97,6 +133,93 @@ export const SettingsView = () => {
                 <p className="text-xs text-white/50 mt-1">
                   {availableModels.length} model{availableModels.length !== 1 ? 's' : ''} available
                 </p>
+              )}
+            </div>
+
+            {/* Request Model Section */}
+            <div
+              ref={requestModelRef}
+              className="mt-4 border border-white/10 rounded-md p-3 bg-zinc-900/40"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <p className="text-sm text-white/60">
+                    Don't see your model?
+                  </p>
+                  <p className="text-xs text-white/40">
+                    Submit a Hugging Face model ID and it will be added to the network if resources are available.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-3">
+
+                {/* Input + Square Button */}
+                <div className="flex">
+                  <input
+                    type="text"
+                    value={requestModelName}
+                    onChange={(e) => setRequestModelName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRequestModel()}
+                    className="flex-1 bg-zinc-800 border border-white/10 border-r-0 px-3 h-9 text-xs font-mono placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-blue-500/30"
+                    placeholder="mistralai/Mistral-7B-Instruct-v0.2"
+                  />
+
+                  <button
+                    onClick={handleRequestModel}
+                    disabled={isRequestingModel || !requestModelName.trim()}
+                    className="h-9 w-9 !rounded flex items-center justify-center bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed text-white transition-colors"
+                  >
+                    {isRequestingModel ? (
+                      <span className="animate-pulse text-xs">…</span>
+                    ) : (
+                      <span className="text-sm">→</span>
+                    )}
+                  </button>
+                </div>
+
+                {/* Slider Section (unchanged) */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-white/50">
+                    Load time ({requestMinutes} min)
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={1}
+                      max={300}
+                      value={requestMinutes}
+                      onChange={(e) => setRequestMinutes(Number(e.target.value))}
+                      className="flex-1 h-1 accent-blue-500"
+                    />
+
+                    <input
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={requestMinutes}
+                      onChange={(e) =>
+                        setRequestMinutes(
+                          Math.max(1, Math.min(60, Number(e.target.value) || 1))
+                        )
+                      }
+                      className="w-14 bg-zinc-800 border border-white/10 rounded-md px-2 py-1 text-xs text-center"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {requestModelMessage && (
+                <div
+                  className={`mt-2 text-xs px-3 py-2 rounded ${
+                    requestModelMessage.success
+                      ? 'text-green-400 bg-blue-900/20'
+                      : 'text-red-400 bg-red-900/20'
+                  }`}
+                >
+                  {requestModelMessage.text}
+                </div>
               )}
             </div>
 
@@ -144,13 +267,13 @@ export const SettingsView = () => {
             </button>
 
             {connectionMessage && (
-              <div className="text-sm text-center text-green-400 bg-green-900/20 py-2 px-3 rounded">
+              <div className="text-sm text-center text-blue-400 bg-blue-900/20 py-2 px-3 rounded">
                 {connectionMessage}
               </div>
             )}
           </div>
         </div>
-        
+
         <div>
           <h3 className="text-lg font-semibold mb-2">Node Status</h3>
           <div className="bg-zinc-800 rounded-lg p-4 space-y-4">
@@ -168,13 +291,13 @@ export const SettingsView = () => {
               <button
                 onClick={handleConnect}
                 disabled={isConnectingTensorlink || chatSettings.isTensorlinkConnected}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed text-white py-2 px-4 rounded-md text-sm transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed text-white py-1 px-2 rounded-md text-sm transition-colors"
               >
                 {isConnectingTensorlink
                   ? 'Connecting...'
                   : chatSettings.isTensorlinkConnected
                     ? 'Connected'
-                    : 'Connect to Tensorlink'}
+                    : 'Connect'}
               </button>
             </div>
 
@@ -224,7 +347,7 @@ export const SettingsView = () => {
             </button>
 
             {connectionMessage && (
-              <div className="text-sm text-center text-green-400 bg-green-900/20 py-2 px-3 rounded">
+              <div className="text-sm text-center text-blue-400 bg-blue-900/20 py-2 px-3 rounded">
                 {connectionMessage}
               </div>
             )}

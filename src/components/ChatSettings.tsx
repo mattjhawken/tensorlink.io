@@ -8,11 +8,8 @@ interface ChatSettingsProps {
   availableModels: Model[]
   showSettings: boolean
   tensorlinkStats: TensorlinkStats | null
-  getTensorlinkStats: () => Promise<void>
   setShowSettings: (show: boolean) => void
-  isConnectingTensorlink: boolean
-  connectToTensorlink: () => Promise<{ success: boolean; message: string }>
-  onConnectionResult?: (result: { success: boolean; message: string }) => void
+  onNavigateToSettings?: () => void
 }
 
 export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
@@ -22,9 +19,7 @@ export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
   showSettings,
   tensorlinkStats,
   setShowSettings,
-  // isConnectingTensorlink,
-  // connectToTensorlink,
-  // onConnectionResult
+  onNavigateToSettings
 }) => {
   const [showStats, setShowStats] = useState(false)
 
@@ -32,6 +27,10 @@ export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
   //   const result = await connectToTensorlink()
   //   onConnectionResult?.(result)
   // }
+  const handleRequestModel = () => {
+    setShowSettings(false)
+    onNavigateToSettings?.()
+  }
 
   const formatBytes = (bytes: number) => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
@@ -45,7 +44,7 @@ export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
       <div className="relative">
         <button
           onClick={() => setShowSettings(!showSettings)}
-          className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-2 rounded-md text-sm flex items-center space-x-1"
+          className="bg-neutral-800 hover:bg-neutral-600 text-white px-2 py-1 rounded-md text-sm flex items-center space-x-1"
         >
           <span>
             {availableModels.find((m) => m.id === chatSettings.model)?.name || 'Select Model'}
@@ -56,9 +55,9 @@ export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
         </button>
 
         {showSettings && (
-          <div className="absolute z-10 mt-1 w-64 bg-gray-800 rounded-md shadow-lg p-2 border border-white/20">
+          <div className="absolute z-10 mt-2 w-64 bg-zinc-800 rounded-md shadow-lg p-2 border border-white/20">
             <div className="mb-2">
-              <label className="text-xs text-white/70 block mb-1">Model</label>
+              <label className="text-xs text-white/70 block mb-1">Models</label>
               <select
                 value={chatSettings.model}
                 onChange={(e) => setChatSettings({ ...chatSettings, model: e.target.value })}
@@ -72,7 +71,33 @@ export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
               </select>
             </div>
 
-            <div className="mb-2">
+            {/* Request Model button */}
+            <div className="border-b border-white/10 pb-1">
+              <button
+                onClick={handleRequestModel}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-2 rounded flex items-center justify-center gap-1 transition-colors"
+              >
+                <svg className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <div className='text-xs'>
+                  Refresh Models
+                </div>
+              </button>
+              <button
+                onClick={handleRequestModel}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-2 rounded flex items-center justify-center gap-1 transition-colors"
+              >
+                <svg className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <div className='text-xs'>
+                  Request a Model
+                </div>
+              </button>
+            </div>
+
+            <div className="my-2">
               <label className="text-xs text-white/70 block mb-1">
                 Temperature: {chatSettings.temperature.toFixed(1)}
               </label>

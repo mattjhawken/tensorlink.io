@@ -10,15 +10,20 @@ import { useMessages } from '../hooks/useMessages'
 import type { Message } from '../types/chat'
 import { useEffect, useRef, useState } from 'react'
 
-export const Interface = () => {
+interface InterfaceProps {
+  onNavigateToSettings?: () => void
+}
+
+export const Interface = ({ onNavigateToSettings }: InterfaceProps) => {
   const { 
     selectedChat, 
     messages, 
     addMessage, 
+    removeMessages,
     updateMessage, 
     updateStreamingMessage,
     finalizeStreamingMessage,
-    refreshSelectedChat 
+    refreshSelectedChat,
   } = useMessages()
   const [inputMessage, setInputMessage] = useState('')
   const [showSettings, setShowSettings] = useState(false)
@@ -29,12 +34,13 @@ export const Interface = () => {
     availableModels,
     chatSettings,
     setChatSettings,
-    isConnectingTensorlink,
+    // isConnectingTensorlink,
     tensorlinkStats,
-    connectToTensorlink,
-    getTensorlinkStats
+    // connectToTensorlink,
+    // getTensorlinkStats
   } = useChatSettings()
   const { isLoading, isSending, streamingMessageId, sendMessage } = useChat()
+  const welcomeMessageId = useRef(crypto.randomUUID())
 
   // Refresh messages when component mounts or when a chat might have been selected
   useEffect(() => {
@@ -62,55 +68,58 @@ export const Interface = () => {
     let currentChat = selectedChat
     if (!currentChat) {
       currentChat = createEmptyChat()
-      // Wait a bit for the chat to be created and selected via events
       await new Promise(resolve => setTimeout(resolve, 100))
     }
 
-    // Pass the streaming callbacks
     const result = await sendMessage(
       inputMessage,
       messages,
       chatSettings,
       addMessage,
+      removeMessages,
       updateStreamingMessage,
-      finalizeStreamingMessage 
+      finalizeStreamingMessage,
     )
 
     if (result?.success) {
       setInputMessage('')
-    } else {
-      // Only add error message here to avoid duplicates
+    } else if (result) {
+      // Restore the user's typed message so they don't lose it
+      if (result.restoredInput) {
+        setInputMessage(result.restoredInput)
+      }
+
+      // Show the actual API error (e.g. "Model has been requested, try again")
       const errorMessage: Message = {
         id: crypto.randomUUID(),
-        role: "system",
-        content: "Error: Failed to send message. Please try again.",
+        role: 'system',
+        content: result.errorMessage ?? 'Failed to send message. Please try again.',
         timestamp: Date.now(),
-      };
-
+      }
       addMessage(errorMessage)
     }
   }
 
-  const handleFeedback = (index: number, feedback: 'positive' | 'negative') => {
+  const handleFeedback = (index: number, feedback: 'positive' | 'negative' | null) => {
     updateMessage(index, { feedback })
   }
 
-  const handleConnectionResult = (result: { success: boolean; message: string }) => {
-    const systemMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'system',
-      content: result.message,
-      timestamp: Date.now()
-    }
-    addMessage(systemMessage)
-  }
+  // const handleConnectionResult = (result: { success: boolean; message: string }) => {
+  //   const systemMessage: Message = {
+  //     id: crypto.randomUUID(),
+  //     role: 'system',
+  //     content: result.message,
+  //     timestamp: Date.now()
+  //   }
+  //   addMessage(systemMessage)
+  // }
 
   // Show welcome message if no chat is selected
   const displayMessages: Message[] = selectedChat 
     ? messages 
     : [
         {
-          id: crypto.randomUUID(),
+          id: welcomeMessageId.current,
           role: 'system',
           content:
             '## Welcome to localhostGPT\n\nAn AI experience powered by local data and peer-to-peer computing with opt-in privacy enhancing features. Select an existing chat or create a new one to start chatting!',
@@ -129,11 +138,8 @@ export const Interface = () => {
             availableModels={availableModels}
             showSettings={showSettings}
             tensorlinkStats={tensorlinkStats}
-            getTensorlinkStats={getTensorlinkStats}
             setShowSettings={setShowSettings}
-            isConnectingTensorlink={isConnectingTensorlink}
-            connectToTensorlink={connectToTensorlink}
-            onConnectionResult={handleConnectionResult}
+            onNavigateToSettings={onNavigateToSettings}
           />
         </div>
       </div>

@@ -53,10 +53,11 @@ function toSignificantDigits(num: number, digits: number) {
 
 interface HomeViewProps {
   onStartChat: () => void
+  onNavigateToRequestModel?: () => void
 }
 
 // Home view component
-export const HomeView = ({ onStartChat }: HomeViewProps) => {
+export const HomeView = ({ onStartChat, onNavigateToRequestModel }: HomeViewProps) => {
   const {
     tensorlinkStats,
     getTensorlinkStats,
@@ -133,18 +134,18 @@ export const HomeView = ({ onStartChat }: HomeViewProps) => {
       }),
       datasets: [
         {
-          label: 'Workers',
-          data: datasets.workers,
-          borderColor: 'rgb(99, 102, 241)',
-          backgroundColor: 'rgba(99, 102, 241, 0.1)',
-          fill: true,
-          tension: 0.4,
-        },
-        {
           label: 'Validators',
           data: datasets.validators,
           borderColor: 'rgb(34, 197, 94)',
           backgroundColor: 'rgba(34, 197, 94, 0.1)',
+          fill: true,
+          tension: 0.4,
+        },
+        {
+          label: 'Workers',
+          data: datasets.workers,
+          borderColor: 'rgb(99, 102, 241)',
+          backgroundColor: 'rgba(99, 102, 241, 0.1)',
           fill: true,
           tension: 0.4,
         },
@@ -203,6 +204,7 @@ export const HomeView = ({ onStartChat }: HomeViewProps) => {
     scales: {
       x: {
         display: true,
+        stacked: true,
         grid: {
           display: true,
           color: 'rgba(255, 255, 255, 0.1)',
@@ -214,6 +216,7 @@ export const HomeView = ({ onStartChat }: HomeViewProps) => {
         },
       },
       y: {
+        stacked: true,
         display: true,
         grid: {
           display: true,
@@ -239,6 +242,38 @@ export const HomeView = ({ onStartChat }: HomeViewProps) => {
     interaction: {
       intersect: false,
       mode: 'index' as const,
+    },
+  }
+
+  const capacityChartOptions = {
+    ...chartOptions,
+    plugins: {
+      ...chartOptions.plugins,
+      title: {
+        ...chartOptions.plugins.title,
+        text: 'Network Capacity',
+      },
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            const label = context.dataset.label || ''
+            const value = context.parsed.y
+            return `${label}: ${formatBytes(value)}`
+          },
+        },
+      },
+    },
+    scales: {
+      ...chartOptions.scales,
+      y: {
+        ...chartOptions.scales.y,
+        ticks: {
+          ...chartOptions.scales.y.ticks,
+          callback: function (value: any) {
+            return formatBytes(Number(value))
+          },
+        },
+      },
     },
   }
 
@@ -346,6 +381,16 @@ export const HomeView = ({ onStartChat }: HomeViewProps) => {
         loading={loading}
         error={null}
       />
+
+      <p className="text-xs text-white/40 mt-2">
+        Don't see your model?{' '}
+        <button
+          onClick={onNavigateToRequestModel}
+          className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
+        >
+          Request a model
+        </button>
+      </p>
 
       {/* Charts and Netowrk Stats */}
       <h3 className="text-lg sm:text-xl pt-7 font-semibold mb-3 text-neutral-800 dark:text-white">
@@ -488,7 +533,7 @@ export const HomeView = ({ onStartChat }: HomeViewProps) => {
               >
                 <Line
                   data={capacityChartData}
-                  options={{ ...chartOptions, plugins: { ...chartOptions.plugins, title: { ...chartOptions.plugins.title, text: 'GPU Capacity' } } }}
+                  options={capacityChartOptions}
                 />
               </motion.div>
             )}

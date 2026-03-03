@@ -6,7 +6,16 @@ import { chatEvents } from "../utils/chatEvents";
 export const useMessages = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatInfo | null>(null);
+
+  // Ref mirrors selectedChat state so callbacks can read the current value
+  // without nesting setState calls inside other setState updaters.
+  const selectedChatRef = useRef<ChatInfo | null>(null);
   const streamingContentRef = useRef<{ [key: string]: string }>({});
+
+  const setSelectedChatAndRef = useCallback((chat: ChatInfo | null) => {
+    selectedChatRef.current = chat;
+    setSelectedChat(chat);
+  }, []);
 
   // Load messages when selected chat changes
   const loadSelectedChat = useCallback(() => {
@@ -18,28 +27,20 @@ export const useMessages = () => {
 
       if (!chat) return;
 
-      setSelectedChat((prev) => {
-        if (prev?.id === chat.id) return prev;
-        return chat;
-      });
-
-      setMessages((prev) => {
-        if (selectedChat?.id === chat.id) return prev;
-        return chat.messages || [];
-      });
+      if (selectedChatRef.current?.id !== chat.id) {
+        setSelectedChatAndRef(chat);
+        setMessages(chat.messages || []);
+      }
     } else {
-      setSelectedChat(null);
+      setSelectedChatAndRef(null);
       setMessages([]);
     }
-  }, [selectedChat]);
+  }, [setSelectedChatAndRef]);
 
   // Load on mount and subscribe to changes
   useEffect(() => {
     loadSelectedChat();
-
-    // Subscribe to chat events
     const unsubscribe = chatEvents.subscribe(loadSelectedChat);
-
     return unsubscribe;
   }, [loadSelectedChat]);
 
@@ -50,103 +51,88 @@ export const useMessages = () => {
       const chats = chatStorage.getChats();
       const chat = chats[selectedIndex];
       if (chat) {
-        setSelectedChat(chat);
+        setSelectedChatAndRef(chat);
         setMessages(chat.messages || []);
       }
     }
-  }, []);
+  }, [setSelectedChatAndRef]);
 
   // Add a message and save to storage
   const addMessage = useCallback((message: Message) => {
+    let updatedMessages: Message[] = [];
+
     setMessages((prev) => {
-      const updated = [...prev, message];
-
-      setSelectedChat((chat) => {
-        if (!chat) return chat;
-
-        chatStorage.updateChat(chat.id, {
-          messages: updated,
-          ...(chat.title === "New Chat" &&
-            message.role === "user" &&
-            prev.length === 0 && {
-              title:
-                message.content.slice(0, 50) +
-                (message.content.length > 50 ? "..." : ""),
-            }),
-        });
-
-        return chat;
-      });
-
-      return updated;
+      updatedMessages = [...prev, message];
+      return updatedMessages;
     });
+
+    // Runs after setState is queued, not inside it
+    const chat = selectedChatRef.current;
+    if (chat) {
+      chatStorage.updateChat(chat.id, {
+        messages: updatedMessages,
+        ...(chat.title === "New Chat" &&
+          message.role === "user" &&
+          updatedMessages.length === 1 && {
+            title: message.content.slice(0, 50) + (message.content.length > 50 ? "..." : ""),
+          }),
+      });
+    }
   }, []);
 
   // Update streaming content for a specific message
   const updateStreamingMessage = useCallback(
     (messageId: string, chunk: string) => {
-      // Accumulate in ref for performance
       if (!streamingContentRef.current[messageId]) {
         streamingContentRef.current[messageId] = "";
       }
       streamingContentRef.current[messageId] += chunk;
 
-      // Update state to trigger re-render
-      setMessages((prev) => {
-        return prev.map((msg) => {
-          if (msg.id === messageId) {
-            return {
-              ...msg,
-              content: streamingContentRef.current[messageId],
-            };
-          }
-          return msg;
-        });
-      });
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === messageId
+            ? { ...msg, content: streamingContentRef.current[messageId] }
+            : msg,
+        ),
+      );
     },
     [],
   );
 
   // Save streaming updates to storage after stream completes
   const finalizeStreamingMessage = useCallback((messageId?: string) => {
-    // Clear the ref for this message
     if (messageId && streamingContentRef.current[messageId]) {
       delete streamingContentRef.current[messageId];
     }
 
-    setSelectedChat((chat) => {
-      if (!chat) return chat;
+    const chat = selectedChatRef.current;
+    if (!chat) return;
 
-      setMessages((currentMessages) => {
-        chatStorage.updateChat(chat.id, {
-          messages: currentMessages,
-        });
-        return currentMessages;
-      });
-
-      return chat;
+    // Capture messages first, then call storage outside the updater
+    setMessages((currentMessages) => {
+      // Schedule storage update after this render cycle
+      setTimeout(() => {
+        chatStorage.updateChat(chat.id, { messages: currentMessages });
+      }, 0);
+      return currentMessages;
     });
   }, []);
 
   // Update a message and save to storage
   const updateMessage = useCallback(
     (index: number, updates: Partial<Message>) => {
+      let updatedMessages: Message[] = [];
+
       setMessages((prev) => {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], ...updates };
-
-        setSelectedChat((chat) => {
-          if (!chat) return chat;
-
-          chatStorage.updateChat(chat.id, {
-            messages: updated,
-          });
-
-          return chat;
-        });
-
-        return updated;
+        updatedMessages = [...prev];
+        updatedMessages[index] = { ...updatedMessages[index], ...updates };
+        return updatedMessages;
       });
+
+      const chat = selectedChatRef.current;
+      if (chat) {
+        chatStorage.updateChat(chat.id, { messages: updatedMessages });
+      }
     },
     [],
   );
@@ -154,17 +140,31 @@ export const useMessages = () => {
   // Clear messages
   const clearMessages = useCallback(() => {
     setMessages([]);
-    if (selectedChat) {
-      chatStorage.updateChat(selectedChat.id, {
-        messages: [],
-      });
+    const chat = selectedChatRef.current;
+    if (chat) {
+      chatStorage.updateChat(chat.id, { messages: [] });
     }
-  }, [selectedChat]);
+  }, []);
+
+  const removeMessages = useCallback((ids: string[]) => {
+    let updatedMessages: Message[] = [];
+
+    setMessages((prev) => {
+      updatedMessages = prev.filter((msg) => !ids.includes(msg.id));
+      return updatedMessages;
+    });
+
+    const chat = selectedChatRef.current;
+    if (chat) {
+      chatStorage.updateChat(chat.id, { messages: updatedMessages });
+    }
+  }, []);
 
   return {
     messages,
     selectedChat,
     addMessage,
+    removeMessages,
     updateMessage,
     updateStreamingMessage,
     finalizeStreamingMessage,

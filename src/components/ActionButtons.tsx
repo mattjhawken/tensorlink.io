@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import type { ComponentProps } from 'react'
 import { FaRegTrashCan, FaFileContract, FaInfo, FaCircle, FaChevronDown } from 'react-icons/fa6'
 import { twMerge } from 'tailwind-merge'
@@ -21,7 +21,7 @@ export const HomeButton = ({
     <div className="relative group">
       <button
         onClick={() => setCurrentView(currentView === 'home' ? 'chat' : 'home')}
-        className={`rounded-md transition-all duration-200 hover:scale-110 active:scale-95 ${
+        className={`p-1 rounded-md transition-all duration-200 hover:scale-110 active:scale-95 ${
           currentView === 'home' ? 'bg-purple-600' : 'bg-zinc-800 hover:bg-gray-600'
         }`}
       >
@@ -82,7 +82,7 @@ export const SettingsButton = ({
     <div className="relative group">
       <button
         onClick={() => setCurrentView(currentView === 'settings' ? 'chat' : 'settings')}
-        className={`p-0 rounded-md transition-all duration-200 hover:scale-110 active:scale-95 ${
+        className={`p-1 rounded-md transition-all duration-200 hover:scale-110 active:scale-95 ${
           currentView === 'settings' ? 'bg-blue-600' : 'bg-zinc-800 hover:bg-gray-600'
         }`}
       >
@@ -219,133 +219,261 @@ export const ActionButtonsRow = ({
   )
 }
 
-type NodeStatus = 'connected' | 'disconnected' | 'connecting'
+const API_URL = 'https://smartnodes.ddns.net/tensorlink-api'
+const POLL_INTERVAL_MS = 60_000 // re-check every 60 s
+
+type ServiceStatus = 'connected' | 'disconnected' | 'checking'
+
+interface StatusRowProps {
+  label: string
+  status: ServiceStatus
+  detail?: string
+}
+
+const StatusDot = ({ status }: { status: ServiceStatus }) => {
+  const color =
+    status === 'connected'
+      ? 'text-green-500'
+      : status === 'checking'
+        ? 'text-yellow-500'
+        : 'text-red-500'
+  return (
+    <FaCircle
+      className={`w-2 h-2 shrink-0 ${color} ${status === 'checking' ? 'animate-pulse' : ''}`}
+    />
+  )
+}
+
+const StatusRow = ({ label, status, detail }: StatusRowProps) => (
+  <div className="flex items-center justify-between gap-3 py-1">
+    <div className="flex items-center gap-2 text-xs text-white/70">
+      <StatusDot status={status} />
+      <span className="font-medium text-white/90">{label}</span>
+    </div>
+    <span className="text-xs text-white/50 truncate max-w-[120px]">
+      {status === 'checking'
+        ? 'Checking…'
+        : status === 'connected'
+          ? detail ?? 'Online'
+          : 'Offline'}
+    </span>
+  </div>
+)
+
+async function checkApiAlive(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_URL}/models`, { signal: AbortSignal.timeout(5000) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+async function checkNodeAlive(url: string): Promise<boolean> {
+  if (!url.trim()) return false
+  try {
+    // Attempt a plain HTTP GET; for WebSocket URLs swap the scheme
+    const httpUrl = url.replace(/^wss?:\/\//, 'https://')
+    const res = await fetch(httpUrl, { signal: AbortSignal.timeout(5000) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
 
 export const NodeStatusButton = () => {
   const [isOpen, setIsOpen] = useState(false)
-  const [nodeStatus, setNodeStatus] = useState<NodeStatus>('disconnected')
+  const [apiStatus, setApiStatus] = useState<ServiceStatus>('checking')
+  const [nodeStatus, setNodeStatus] = useState<ServiceStatus>('disconnected')
   const [customNodeUrl, setCustomNodeUrl] = useState('')
+  const [savedNodeUrl, setSavedNodeUrl] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown when clicking outside
+  // Overall status: connected if either service is up
+  const overallConnected = apiStatus === 'connected' || nodeStatus === 'connected'
+  const overallChecking = apiStatus === 'checking' || nodeStatus === 'checking'
+  const overallStatus: ServiceStatus = overallConnected
+    ? 'connected'
+    : overallChecking
+      ? 'checking'
+      : 'disconnected'
+
+  const overallColor =
+    overallStatus === 'connected'
+      ? 'text-green-500'
+      : overallStatus === 'checking'
+        ? 'text-yellow-500'
+        : 'text-red-500'
+
+  const overallLabel =
+    overallStatus === 'connected'
+      ? 'Connected'
+      : overallStatus === 'checking'
+        ? 'Checking…'
+        : 'Disconnected'
+
+  // Poll API status
+  const pollApi = useCallback(async () => {
+    setApiStatus('checking')
+    const alive = await checkApiAlive()
+    setApiStatus(alive ? 'connected' : 'disconnected')
+  }, [])
+
+  // Poll personal node if one is saved
+  const pollNode = useCallback(async (url: string) => {
+    if (!url) {
+      setNodeStatus('disconnected')
+      return
+    }
+    setNodeStatus('checking')
+    const alive = await checkNodeAlive(url)
+    setNodeStatus(alive ? 'connected' : 'disconnected')
+  }, [])
+
+  // Initial + periodic polling
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+    pollApi()
+    const id = setInterval(pollApi, POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [pollApi])
+
+  useEffect(() => {
+    const saved = localStorage.getItem('custom_node_url') ?? ''
+    setSavedNodeUrl(saved)
+    setCustomNodeUrl(saved)
+    pollNode(saved)
+  }, [pollNode])
+
+  useEffect(() => {
+    if (!savedNodeUrl) return
+    pollNode(savedNodeUrl)
+    const id = setInterval(() => pollNode(savedNodeUrl), POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [savedNodeUrl, pollNode])
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false)
       }
     }
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+    if (isOpen) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [isOpen])
 
   const handleConnect = () => {
-    if (!customNodeUrl.trim()) return
-    
-    setNodeStatus('connecting')
-    
-    // Simulate connection attempt
-    setTimeout(() => {
-      // Replace with actual connection logic
-      setNodeStatus('connected')
-      setIsOpen(false)
-    }, 1500)
+    const url = customNodeUrl.trim()
+    if (!url) return
+    localStorage.setItem('custom_node_url', url)
+    setSavedNodeUrl(url)
+    setIsOpen(false)
   }
 
   const handleDisconnect = () => {
-    setNodeStatus('disconnected')
+    localStorage.removeItem('custom_node_url')
+    setSavedNodeUrl('')
     setCustomNodeUrl('')
+    setNodeStatus('disconnected')
   }
 
-  const getStatusColor = () => {
-    switch (nodeStatus) {
-      case 'connected':
-        return 'text-green-500'
-      case 'connecting':
-        return 'text-yellow-500'
-      case 'disconnected':
-        return 'text-red-500'
-    }
-  }
-
-  const getStatusText = () => {
-    switch (nodeStatus) {
-      case 'connected':
-        return 'Connected'
-      case 'connecting':
-        return 'Connecting...'
-      case 'disconnected':
-        return 'Disconnected'
-    }
+  const handleRefresh = () => {
+    pollApi()
+    if (savedNodeUrl) pollNode(savedNodeUrl)
   }
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Status Button */}
+      {/* ── Pill button ── */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setIsOpen((o) => !o)}
         className="flex items-center gap-2 px-3 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm"
       >
-        <FaCircle className={`w-2 h-2 ${getStatusColor()} ${nodeStatus === 'connecting' ? 'animate-pulse' : ''}`} />
-        <span className="text-sm hidden sm:inline">{getStatusText()}</span>
+        <FaCircle
+          className={`w-2 h-2 ${overallColor} ${overallStatus === 'checking' ? 'animate-pulse' : ''}`}
+        />
+        <span className="text-sm hidden sm:inline">{overallLabel}</span>
         <FaChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
+      {/* ── Dropdown ── */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-72 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-50">
-          <div className="p-4">
-            <div className="mb-3">
-              <h3 className="text-sm font-semibold mb-1">Node Status</h3>
-              <div className="flex items-center gap-2 text-xs text-white/70">
-                <FaCircle className={`w-2 h-2 ${getStatusColor()}`} />
-                <span>{getStatusText()}</span>
-              </div>
+          <div className="p-4 space-y-3">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Connection Status</h3>
+              <button
+                onClick={handleRefresh}
+                className="!text-xs text-white/50 hover:text-white transition-colors !px-2 !py-0.5 rounded hover:bg-zinc-700"
+                title="Refresh"
+              >
+                ↻ Refresh
+              </button>
             </div>
 
-            <div className="border-t border-white/10 pt-3 mb-3">
-              <label className="block text-xs font-medium mb-2">
-                Connect to Personal Node
+            {/* Service rows */}
+            <div className="bg-zinc-900/60 rounded-md px-3 py-1 divide-y divide-white/5">
+              <StatusRow label="Tensorlink API" status={apiStatus} detail={API_URL.replace('https://', '')} />
+              <StatusRow
+                label="Personal Node"
+                status={savedNodeUrl ? nodeStatus : 'disconnected'}
+                detail={savedNodeUrl || undefined}
+              />
+            </div>
+
+            {/* Overall badge */}
+            <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-md ${
+              overallConnected ? 'bg-green-900/30 text-green-400' : 'bg-zinc-900/60 text-white/40'
+            }`}>
+              <FaCircle className={`w-1.5 h-1.5 ${overallConnected ? 'text-green-400' : 'text-white/30'}`} />
+              {overallConnected
+                ? 'At least one service is reachable'
+                : 'No services reachable'}
+            </div>
+
+            {/* Personal node input */}
+            <div className="border-t border-white/10 pt-3 space-y-2">
+              <label className="block text-xs font-medium text-white/70">
+                Personal Node URL
               </label>
               <input
                 type="text"
                 value={customNodeUrl}
                 onChange={(e) => setCustomNodeUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
                 placeholder="wss://your-node-url.com"
-                className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                disabled={nodeStatus === 'connecting' || nodeStatus === 'connected'}
+                className="w-full px-3 py-2 bg-zinc-900 border border-white/10 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder-white/20"
               />
-            </div>
-
-            <div className="flex gap-2">
-              {nodeStatus === 'connected' ? (
-                <button
-                  onClick={handleDisconnect}
-                  className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-sm rounded-md transition-colors"
-                >
-                  Disconnect
-                </button>
-              ) : (
-                <button
-                  onClick={handleConnect}
-                  disabled={!customNodeUrl.trim() || nodeStatus === 'connecting'}
-                  className="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white text-sm rounded-md transition-colors"
-                >
-                  {nodeStatus === 'connecting' ? 'Connecting...' : 'Connect'}
-                </button>
-              )}
-            </div>
-
-            {nodeStatus === 'connected' && customNodeUrl && (
-              <div className="mt-3 p-2 bg-zinc-900 rounded-md">
-                <p className="text-xs text-white/50 break-all">{customNodeUrl}</p>
+              <div className="flex gap-2">
+                {savedNodeUrl ? (
+                  <>
+                    <button
+                      onClick={handleConnect}
+                      className="flex-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-md transition-colors"
+                    >
+                      Update
+                    </button>
+                    <button
+                      onClick={handleDisconnect}
+                      className="flex-1 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-sm rounded-md transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleConnect}
+                    disabled={!customNodeUrl.trim()}
+                    className="flex-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white text-sm rounded-md transition-colors"
+                  >
+                    Connect
+                  </button>
+                )}
               </div>
-            )}
+            </div>
+
           </div>
         </div>
       )}

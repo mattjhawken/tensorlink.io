@@ -8,15 +8,32 @@ import {
 } from './components'
 import { useRef, useState, useCallback } from 'react'
 
+
 // Define possible app views
 type AppView = 'home' | 'chat' | 'settings' | 'fine-tuning'
 
 const App = () => {
   const contentContainerRef = useRef<HTMLDivElement>(null)
   
-  const [currentView, setCurrentView] = useState<AppView>('chat')
+  const [currentView, setCurrentViewStorage] = useState<AppView>(() => {
+    return (localStorage.getItem('appView') as AppView) ?? 'chat'
+  })
   const [chatListKey, setChatListKey] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [scrollToRequestModel, setScrollToRequestModel] = useState(false)
+
+  const setCurrentView: React.Dispatch<React.SetStateAction<AppView>> =
+    useCallback((value) => {
+      setCurrentViewStorage(prev => {
+        const next =
+          typeof value === 'function'
+            ? (value as (prev: AppView) => AppView)(prev)
+            : value
+
+        localStorage.setItem('appView', next)
+        return next
+    })
+  }, [])
 
   const resetScroll = () => {
     contentContainerRef.current?.scrollTo({
@@ -34,6 +51,15 @@ const App = () => {
     setCurrentView('chat') // Switch to chat view
     resetScroll()
     setSidebarOpen(false)
+  }, [])
+
+  // Navigate to Settings → Request Model section from the chat dropdown
+  const handleNavigateToRequestModel = useCallback(() => {
+    setScrollToRequestModel(true)
+    setCurrentView('settings')
+    resetScroll()
+    // Reset flag after a short delay so re-navigation works again
+    setTimeout(() => setScrollToRequestModel(false), 800)
   }, [])
 
   return (
@@ -96,23 +122,26 @@ const App = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="px-3! rounded-md bg-zinc-800"
+              className="pb-1 px-2 rounded-md bg-zinc-800"
             >
               ☰
             </button>
-            <span className="text-sm font-medium">tensorlink</span>
+            <span className="text-md font-medium">tensorlink</span>
           </div>
           <NodeStatusButton />
         </div>
 
         {
-          currentView === 'home' && <HomeView onStartChat={() => {
-            setCurrentView('chat')
-            resetScroll()
-          }}/>
+          currentView === 'home' && <HomeView 
+            onStartChat={() => {
+              setCurrentView('chat')
+              resetScroll()
+            }}
+            onNavigateToRequestModel={handleNavigateToRequestModel}
+          />
         }
-        {currentView === 'settings' && <SettingsView />}
-        {currentView === 'chat' && <Interface key={chatListKey} />}
+        {currentView === 'settings' && <SettingsView scrollToRequestModel={scrollToRequestModel} />}
+        {currentView === 'chat' && <Interface key={chatListKey} onNavigateToSettings={handleNavigateToRequestModel} />}
       </div>
     </div>
   )
