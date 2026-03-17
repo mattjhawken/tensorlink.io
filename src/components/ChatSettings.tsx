@@ -1,42 +1,27 @@
-import type { TensorlinkStats } from '../types/tensorlink'
-import React, { useState } from 'react'
-import type { ChatSettings as IChatSettings, Model } from '../types/chat'
+import React from 'react'
+import { useChatSettings } from '../hooks/useChatSettings'
 
 interface ChatSettingsProps {
-  chatSettings: IChatSettings
-  setChatSettings: (settings: IChatSettings) => void
-  availableModels: Model[]
   showSettings: boolean
-  tensorlinkStats: TensorlinkStats | null
   setShowSettings: (show: boolean) => void
   onNavigateToSettings?: () => void
 }
 
 export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
-  chatSettings,
-  setChatSettings,
-  availableModels,
   showSettings,
-  tensorlinkStats,
   setShowSettings,
   onNavigateToSettings
 }) => {
-  const [showStats, setShowStats] = useState(false)
+  const {
+    availableModels,
+    chatSettings,
+    setChatSettings,
+    refreshModels
+  } = useChatSettings()
 
-  // const handleTensorlinkConnect = async () => {
-  //   const result = await connectToTensorlink()
-  //   onConnectionResult?.(result)
-  // }
   const handleRequestModel = () => {
     setShowSettings(false)
     onNavigateToSettings?.()
-  }
-
-  const formatBytes = (bytes: number) => {
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
-    if (bytes === 0) return '0 Bytes'
-    const i = Math.floor(Math.log(bytes) / Math.log(1024))
-    return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i]
   }
 
   return (
@@ -72,28 +57,24 @@ export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
             </div>
 
             {/* Request Model button */}
-            <div className="border-b border-white/10 pb-1">
+            <div className="border-b border-white/10 pb-2 flex gap-1">
               <button
-                onClick={handleRequestModel}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-2 rounded flex items-center justify-center gap-1 transition-colors"
+                onClick={refreshModels}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-1 py-0.25 rounded flex items-center justify-center gap-1 transition-colors"
               >
-                <svg className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                <div className='text-xs'>
-                  Refresh Models
-                </div>
+                <span className="text-xs whitespace-nowrap">Refresh</span>
               </button>
               <button
                 onClick={handleRequestModel}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-2 rounded flex items-center justify-center gap-1 transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-1 py-0.25 rounded flex items-center justify-center gap-1 transition-colors"
               >
-                <svg className="h-2 w-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                <div className='text-xs'>
-                  Request a Model
-                </div>
+                <span className="text-xs whitespace-nowrap">Request a Model</span>
               </button>
             </div>
 
@@ -137,81 +118,6 @@ export const ChatSettingsComponent: React.FC<ChatSettingsProps> = ({
           </div>
         )}
       </div>
-
-      {/* Stats Display Modal/Popup */}
-      {showStats && tensorlinkStats && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-white/20">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-white">Tensorlink Network Stats</h3>
-              <button
-                onClick={() => setShowStats(false)}
-                className="text-white/60 hover:text-white"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-white/70">Validators:</span>
-                <span className="text-white font-mono">{tensorlinkStats.validators}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Workers:</span>
-                <span className="text-white font-mono">{tensorlinkStats.workers}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Users:</span>
-                <span className="text-white font-mono">{tensorlinkStats.users}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Proposals:</span>
-                <span className="text-white font-mono">{tensorlinkStats.proposal}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Available Capacity:</span>
-                <span className="text-white font-mono">
-                  {formatBytes(tensorlinkStats.available_capacity)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-white/70">Used Capacity:</span>
-                <span className="text-white font-mono">
-                  {formatBytes(tensorlinkStats.used_capacity)}
-                </span>
-              </div>
-              <div className="mt-4">
-                <span className="text-white/70">Available Models:</span>
-                <div className="mt-2 space-y-1">
-                  {tensorlinkStats.models.map((model, index) => (
-                    <div
-                      key={index}
-                      className="bg-gray-700 px-2 py-1 rounded text-xs font-mono text-white"
-                    >
-                      {model}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowStats(false)}
-              className="mt-4 w-full bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-md text-sm"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

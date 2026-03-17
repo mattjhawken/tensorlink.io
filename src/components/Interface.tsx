@@ -1,20 +1,34 @@
 import { 
     ChatSettingsComponent,
     MessageInput,
-    MessageList
+    MessageList,
+    NewChatButton,
+    DeleteChatButton,
+    SettingsButton
 } from '../components'
 import { useChat } from '../hooks/useChat'
 import { useChatSettings } from '../hooks/useChatSettings'
 import { useChats } from "../hooks/useChats"
 import { useMessages } from '../hooks/useMessages'
 import type { Message } from '../types/chat'
+import { type AppView } from "../types/app"
 import { useEffect, useRef, useState } from 'react'
 
 interface InterfaceProps {
   onNavigateToSettings?: () => void
+  resetScroll?: () => void
+  refreshChatList?: () => void
+  currentView: AppView;
+  setCurrentView: React.Dispatch<React.SetStateAction<AppView>>;
 }
 
-export const Interface = ({ onNavigateToSettings }: InterfaceProps) => {
+export const Interface = ({ 
+  onNavigateToSettings,
+  resetScroll,
+  refreshChatList,
+  currentView,
+  setCurrentView
+ }: InterfaceProps) => {
   const { 
     selectedChat, 
     messages, 
@@ -31,11 +45,11 @@ export const Interface = ({ onNavigateToSettings }: InterfaceProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { createEmptyChat } = useChats()
   const {
-    availableModels,
+    // availableModels,
     chatSettings,
-    setChatSettings,
+    // setChatSettings,
     // isConnectingTensorlink,
-    tensorlinkStats,
+    // tensorlinkStats,
     // connectToTensorlink,
     // getTensorlinkStats
   } = useChatSettings()
@@ -133,14 +147,15 @@ export const Interface = ({ onNavigateToSettings }: InterfaceProps) => {
       <div className="flex justify-between items-center px-3 py-1 border-b border-white/20">
         <div ref={settingsRef}>
           <ChatSettingsComponent
-            chatSettings={chatSettings}
-            setChatSettings={setChatSettings}
-            availableModels={availableModels}
             showSettings={showSettings}
-            tensorlinkStats={tensorlinkStats}
             setShowSettings={setShowSettings}
             onNavigateToSettings={onNavigateToSettings}
           />
+        </div>
+        <div className="flex space-x-1 pl-1">
+          <NewChatButton resetScroll={resetScroll} onChatChange={refreshChatList} />
+          <DeleteChatButton resetScroll={resetScroll} onChatChange={refreshChatList} />
+          <SettingsButton currentView={currentView} setCurrentView={setCurrentView} />
         </div>
       </div>
 

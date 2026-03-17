@@ -49,7 +49,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type your message here..."
-          className="flex-1 bg-zinc-800 text-white rounded-lg p-3 outline-none resize-none min-h-5 max-h-20 pt-34transition-all overflow-y-auto"
+          className="flex-1 bg-zinc-800 text-white rounded-lg p-3 outline-none resize-none transition-all overflow-y-auto"
           disabled={disabled}
         />
         <button

@@ -33,7 +33,7 @@ const loadPersistedSettings = (): ChatSettings => {
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
-        // Never persist connection state — re-check on load
+        // Never persist connection state
         isTensorlinkConnected: false,
         isModelInitialized: false,
       };
@@ -62,6 +62,7 @@ interface ChatSettingsContextValue {
   getTensorlinkStats: () => Promise<void>;
   requestModel: (hfName: string, requestModel: number) => Promise<{ success: boolean; message: string }>;
   refreshModels: () => Promise<void>;
+  isRefreshingModels: boolean;
 }
 
 const ChatSettingsContext = createContext<ChatSettingsContextValue | null>(null);
@@ -81,14 +82,10 @@ export const ChatSettingsProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const initializeSettings = async () => {
-      const [models] = await Promise.allSettled([
-        ApiService.fetchModels(),
+      await Promise.allSettled([
+        refreshModels(),
         checkConnectionStatus(),
       ]);
-
-      if (models.status === "fulfilled") {
-        setAvailableModels(models.value);
-      }
     };
 
     initializeSettings();
@@ -174,7 +171,8 @@ export const ChatSettingsProvider = ({ children }: { children: ReactNode }) => {
         connectToTensorlink,
         getTensorlinkStats,
         requestModel,
-        refreshModels
+        refreshModels,
+        isRefreshingModels
       }}
     >
       {children}

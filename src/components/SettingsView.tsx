@@ -2,7 +2,13 @@ import { useChatSettings } from '../hooks/useChatSettings'
 import { useState, useEffect, useRef } from 'react'
 
 // Settings view component
-export const SettingsView = ({ scrollToRequestModel }: { scrollToRequestModel?: boolean }) => {
+export const SettingsView = ({ 
+  scrollToRequestModel,
+  handleChatSelect
+}: { 
+  scrollToRequestModel?: boolean,
+  handleChatSelect?: () => void
+}) => {
   const {
     availableModels,
     chatSettings,
@@ -95,7 +101,28 @@ export const SettingsView = ({ scrollToRequestModel }: { scrollToRequestModel?: 
 
   return (
     <div className="p-2 sm:p-6 text-white max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Settings</h2>
+      <div className="flex flex-row justify-between">
+        <h2 className="text-2xl font-bold mb-4">Settings</h2>
+        <button 
+          onClick={handleChatSelect}
+          className="bg-zinc-950 my-3 gap-0.5 p-0.5 px-1.5 flex items-center"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 014 4v1"
+            />
+          </svg>
+          Back
+        </button>
+      </div>
 
       <div className="space-y-6">
         <div>

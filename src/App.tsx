@@ -1,16 +1,16 @@
 import {
-  ActionButtonsRow,
   NodeStatusButton,
   ChatPreviewList,
   SettingsView,
   HomeView,
-  Interface
+  Interface,
+  NewChatButton,
+  DeleteChatButton,
+  SettingsButton,
+  HomeButton
 } from './components'
 import { useRef, useState, useCallback } from 'react'
-
-
-// Define possible app views
-type AppView = 'home' | 'chat' | 'settings' | 'fine-tuning'
+import { type AppView } from "./types/app"
 
 const App = () => {
   const contentContainerRef = useRef<HTMLDivElement>(null)
@@ -68,7 +68,7 @@ const App = () => {
       {sidebarOpen && (
         <div
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/60 z-30 md:hidden"
+          className="fixed inset-0 bg-black/60 z-30 sm:hidden"
         />
       )}
 
@@ -87,14 +87,20 @@ const App = () => {
           <h2 className="text-lg sm:text-xl font-bold">tensorlink.io</h2>
         </div>
 
-        <ActionButtonsRow
-          className="action-row flex items-center px-1"
-          currentView={currentView}
-          setCurrentView={setCurrentView}
-          resetScroll={resetScroll}
-          onChatChange={refreshChatList}
-        />
+        <div
+          className='flex justify-between items-center gap-1 pb-3'
+        >
+          <div className="flex space-x-1 pl-1">
+            <NewChatButton resetScroll={resetScroll} onChatChange={refreshChatList} />
+            <DeleteChatButton resetScroll={resetScroll} onChatChange={refreshChatList} />
+          </div>
 
+          <div className="flex space-x-1 pl-1">
+            <SettingsButton currentView={currentView} setCurrentView={setCurrentView} />
+            <HomeButton currentView={currentView} setCurrentView={setCurrentView} />
+          </div>
+        </div>
+        
         <div>
           <div className="p-4 sm:p-6 text-center text-white/70 text-sm sm:text-base">
             Select a chat or start a new conversation
@@ -114,14 +120,13 @@ const App = () => {
         className={`
           flex-1 h-full overflow-y-auto relative bg-zinc-900/90
           transition-[margin] duration-300
-          ${sidebarOpen ? 'md:ml-[260px]' : 'md:ml-0'}
+          ${sidebarOpen ? 'sm:ml-[260px]' : 'sm:ml-0'}
         `}
       >
-        {/* Mobile header - hidden on home page */}
         <div className="flex items-center justify-between gap-3 p-3 border-b border-white/10 bg-zinc-900">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setSidebarOpen(true)}
+              onClick={() => setSidebarOpen(prev => !prev)}
               className="pb-1 px-2 rounded-md bg-zinc-800"
             >
               ☰
@@ -140,8 +145,15 @@ const App = () => {
             onNavigateToRequestModel={handleNavigateToRequestModel}
           />
         }
-        {currentView === 'settings' && <SettingsView scrollToRequestModel={scrollToRequestModel} />}
-        {currentView === 'chat' && <Interface key={chatListKey} onNavigateToSettings={handleNavigateToRequestModel} />}
+        {currentView === 'settings' && <SettingsView scrollToRequestModel={scrollToRequestModel} handleChatSelect={handleChatSelect} />}
+        {currentView === 'chat' && <Interface 
+          key={chatListKey} 
+          onNavigateToSettings={handleNavigateToRequestModel} 
+          resetScroll={resetScroll}
+          refreshChatList={refreshChatList}
+          currentView={currentView} 
+          setCurrentView={setCurrentView}
+        />}
       </div>
     </div>
   )
