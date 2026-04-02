@@ -19,7 +19,7 @@ const App = () => {
     return (localStorage.getItem('appView') as AppView) ?? 'chat'
   })
   const [chatListKey, setChatListKey] = useState(0)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 640)
   const [scrollToRequestModel, setScrollToRequestModel] = useState(false)
 
   const setCurrentView: React.Dispatch<React.SetStateAction<AppView>> =
@@ -48,9 +48,12 @@ const App = () => {
 
   // Handler for when a chat is selected
   const handleChatSelect = useCallback(() => {
-    setCurrentView('chat') // Switch to chat view
+    setCurrentView('chat')
     resetScroll()
-    setSidebarOpen(false)
+
+    if (window.innerWidth < 640) {
+      setSidebarOpen(false)
+    }
   }, [])
 
   // Navigate to Settings → Request Model section from the chat dropdown
@@ -72,7 +75,7 @@ const App = () => {
         />
       )}
 
-      {/* Sidebar - hidden on home page */}
+      {/* Sidebar */}
       <aside
         className={`
           fixed z-40
@@ -120,7 +123,7 @@ const App = () => {
         className={`
           flex-1 h-full overflow-y-auto relative bg-zinc-900/90
           transition-[margin] duration-300
-          ${sidebarOpen ? 'sm:ml-[260px]' : 'sm:ml-0'}
+          ${sidebarOpen ? 'sm:ml-[260px]' : 'ml-0'}
         `}
       >
         <div className="flex items-center justify-between gap-3 p-3 border-b border-white/10 bg-zinc-900">
