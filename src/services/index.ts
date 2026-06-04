@@ -3,17 +3,18 @@ import type {
   FineTuningJob,
   Message,
   Model,
+  ModelStatusResponse
 } from "../types/chat";
 import type { TensorlinkStats } from "../types/tensorlink";
 
-const API_URL = "https://smartnodes.ddns.net/tensorlink-api";
-// const API_URL = "http://192.168.2.54:64747";
+const API_URL = "https://tensorlink.ddns.net/tensorlink";
+// const API_URL = "http://192.168.2.51:64747";
 
 export class ApiService {
   
   static async fetchModels(): Promise<Model[]> {
     try {
-      const response = await fetch(`${API_URL}/models`);
+      const response = await fetch(`${API_URL}/v1/models/available`);
       if (!response.ok) {
         throw new Error(`Failed to fetch models: ${response.status}`);
       }
@@ -30,8 +31,8 @@ export class ApiService {
       console.error("Error fetching models:", error);
       return [
         {
-          id: "Qwen/Qwen2.5-14B-Instruct",
-          name: "Qwen2.5-14B-Instruct",
+          id: "Qwen/Qwen3-8B",
+          name: "Qwen3-8B",
           requires_tensorlink: true,
         },
       ];
@@ -66,9 +67,9 @@ export class ApiService {
     }
   }
 
-  static async getModelDemand(): Promise<any> {
+  static async getModelDemand(days: number = 30, limit: number = 10): Promise<any> {
     try {
-      const response = await fetch(`${API_URL}/model-demand`);
+      const response = await fetch(`${API_URL}/v1/models/demand?days=${days}&limit=${limit}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch model demand: ${response.status}`);
       }
@@ -202,12 +203,25 @@ export class ApiService {
     }
   }
 
-  static async requestModel(hfName: string, requestMinutes: number): Promise<{ success: boolean; message: string }> {
+  static async getModelStatus(hfName: string): Promise<ModelStatusResponse> {
     try {
-      const response = await fetch(`${API_URL}/request-model`, {
+      const response = await fetch(`${API_URL}/v1/models/status?model=${encodeURIComponent(hfName)}`);
+      if (!response.ok) {
+        throw new Error(`Failed to get model status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching model status:", error);
+      throw error;
+    }
+  }
+
+  static async requestModel(hfName: string, requestMinutes: number) {
+    try {
+      const response = await fetch(`${API_URL}/v1/models/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           hf_name: hfName,
           time: requestMinutes * 60,
         }),
@@ -217,10 +231,10 @@ export class ApiService {
         throw new Error(`Failed to request model: ${response.status} - ${errorText}`);
       }
       const data = await response.json();
-      return { success: true, message: data.message ?? "Model requested successfully!" };
+      return { success: true, status: data.status, message: data.message ?? "Model requested successfully!" };
     } catch (error) {
       console.error("Error requesting model:", error);
-      return { success: false, message: "Failed to request model. Please try again." };
+      return { success: false, status: "inactive", message: "Failed to request model. Please try again." };
     }
   }
 

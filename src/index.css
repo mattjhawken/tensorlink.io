@@ -35,6 +35,8 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif, 
+               'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
 }
 
 h1 {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { Message, ChatInfo } from "../types/chat";
 import { chatStorage } from "../utils/chatStorage";
 import { chatEvents } from "../utils/chatEvents";
+import { flushSync } from "react-dom";
 
 export const useMessages = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -87,14 +88,16 @@ export const useMessages = () => {
         streamingContentRef.current[messageId] = "";
       }
       streamingContentRef.current[messageId] += chunk;
-
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === messageId
-            ? { ...msg, content: streamingContentRef.current[messageId] }
-            : msg,
-        ),
-      );
+  
+      flushSync(() => {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId
+              ? { ...msg, content: streamingContentRef.current[messageId] }
+              : msg,
+          ),
+        );
+      });
     },
     [],
   );

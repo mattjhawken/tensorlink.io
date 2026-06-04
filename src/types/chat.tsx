@@ -37,3 +37,9 @@ export interface ChatInfo {
 }
 
 export type AppView = "chat" | "settings" | "fine-tuning";
+
+export interface ModelStatusResponse {
+  model: string;
+  status: "active" | "loading" | "initializing" | "inactive";
+  message: string;
+}

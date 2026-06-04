@@ -179,7 +179,7 @@ export const DeleteChatButton = ({
   )
 }
 
-const API_URL = 'https://smartnodes.ddns.net/tensorlink-api'
+const API_URL = 'https://tensorlink.ddns.net/tensorlink'
 const POLL_INTERVAL_MS = 60_000 // re-check every 60 s
 
 type ServiceStatus = 'connected' | 'disconnected' | 'checking'
@@ -222,7 +222,7 @@ const StatusRow = ({ label, status, detail }: StatusRowProps) => (
 
 async function checkApiAlive(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/models`, { signal: AbortSignal.timeout(5000) })
+    const res = await fetch(`${API_URL}/v1/models/available`, { signal: AbortSignal.timeout(5000) })
     return res.ok
   } catch {
     return false
