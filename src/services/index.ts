@@ -123,9 +123,10 @@ export class ApiService {
 
       const response = await fetch(`${API_URL}/v1/chat/completions`, {
         method: "POST",
+        cache: "no-store",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
+          Accept: "text/event-stream",  // ← tell the server you want SSE
         },
         body: JSON.stringify({
           model: settings.model,
