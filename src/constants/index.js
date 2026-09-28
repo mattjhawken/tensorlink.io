@@ -5,9 +5,7 @@ import {
   blocks,
   community,
   linkedin,
-  twitter,
   discord,
-  x,
 } from "../assets";
 import {
   MdHome,
@@ -29,7 +27,7 @@ import {
 import {
   FaGithub,
   FaDiscord,
-  FaXTwitter,
+  FaLinkedin,
 } from "react-icons/fa6";
 import { Cpu, Zap, Lock } from "lucide-react";
 
@@ -51,7 +49,7 @@ export const sideLinks = [
     title: "Tensorlink",
     links: [
       { name: "About", id: "", icon: MdHome },
-      { name: "Launch App", id: "app", icon: MdCode, cta: true },
+      { name: "Tensorlink App", id: "app", icon: MdCode, cta: true },
       {
         name: "Documentation",
         id: "docs",
@@ -103,10 +101,10 @@ export const sideLinks = [
         external: true,
       },
       {
-        name: "X",
-        id: "https://x.com/smartnodes_lab",
-        icon: FaXTwitter,
+        name: "LinkedIn",
         external: true,
+        icon: FaLinkedin,
+        id: "https://www.linkedin.com/company/tensorlink-lab",
       },
       {
         name: "Discord",
@@ -120,9 +118,9 @@ export const sideLinks = [
 
 export const navLinks = [
   // { id: "", title: "Home" },
-  { id: "docs", title: "Docs" },
-  { id: "app", title: "Launch App", cta: true },
+  { id: "docs", title: "Docs", link: "docs" },
   { id: "https://github.com/tensorlink-lab/tensorlink", title: "GitHub", external: true },
+  { id: "app", title: "Launch App", link: "app", cta: true },
 ];
 
 export const features = [
@@ -210,11 +208,11 @@ export const footerLinks = [
   {
     title: "Community",
     links: [
-      {
-        name: "X",
-        icon: twitter,
-        link: "https://www.x.com/smartnodes_lab",
-      },
+      // {
+      //   name: "X",
+      //   icon: twitter,
+      //   link: "https://www.x.com/smartnodes_lab",
+      // },
       {
         name: "Discord",
         icon: discord,
@@ -256,11 +254,11 @@ export const socialMedia = [
     icon: discord,
     link: "https://discord.gg/aCW2kTNzJ2",
   },
-  {
-    id: "social-media-3",
-    icon: x,
-    link: "https://www.x.com/smartnodes_lab",
-  },
+  // {
+  //   id: "social-media-3",
+  //   icon: x,
+  //   link: "https://www.x.com/smartnodes_lab",
+  // },
   {
     id: "social-media-4",
     icon: linkedin,

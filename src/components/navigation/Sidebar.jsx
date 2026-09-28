@@ -114,18 +114,7 @@ const Sidebar = ({ open, close, embedded = false }) => {
                                     }
                                 }}                                
                             >
-                        {isApp ? (
-                            <div className="group relative rounded-lg">
-                                <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-500 via-blue-500 to-pink-500 blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
-                                <span className="relative z-10 block rounded-lg p-[1.5px] bg-gradient-to-r from-purple-500 via-blue-500 to-pink-500 bg-[length:200%_200%] animate-gradient-x">
-                                    <span className="flex items-center gap-2 rounded-[7px] px-4 py-2 font-poppins text-base font-semibold text-black dark:text-white bg-white dark:bg-zinc-900 transition-colors duration-300">
-                                        {LinkIcon && <LinkIcon size={16} />}
-                                        {link.name}
-                                    </span>
-                                </span>
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                                <div className="flex items-center justify-between px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
                                     <span className="flex items-center gap-2 font-poppins text-base dark:text-gray-300 text-gray-900">
                                         {LinkIcon && <LinkIcon size={16} className="text-gray-500 dark:text-gray-400 shrink-0" />}
                                         {link.name}
@@ -140,7 +129,6 @@ const Sidebar = ({ open, close, embedded = false }) => {
                                         />
                                     )}
                                 </div>
-                                )}
                                 
                                 {link.sublinks && (
                                     <div

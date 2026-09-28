@@ -65,7 +65,7 @@ function NodeStatusPill({ onOpenSettings }) {
 function SidebarTabs({ tab, onChange }) {
   const tabs = [
     { id: 'chats', label: 'Chats', icon: MdChatBubbleOutline },
-    { id: 'docs', label: 'Docs', icon: MdMenuBook },
+    { id: 'docs', label: 'Home', icon: MdMenuBook },
   ]
   return (
     <div className="mx-3 mb-3 flex rounded-lg border border-white/10 bg-white/[0.02] p-1">

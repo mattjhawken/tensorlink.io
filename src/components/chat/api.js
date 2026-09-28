@@ -1,9 +1,4 @@
-// Every network call the app makes lives here. Chat requests prefer your
-// personal Tensorlink node (if connected and reachable) over the public
-// API, so your prompts never have to leave a machine you control unless
-// you choose not to run one — that's the "localStorage + node" privacy
-// combo the rest of the app is built around.
-
+// Every network call the app makes lives here.
 const DEFAULT_TIMEOUT = 8000
 
 function withTimeout(ms = DEFAULT_TIMEOUT) {
@@ -40,7 +35,7 @@ function resolveBase({ apiUrl, nodeUrl, nodeConnected }) {
 }
 
 const HF_CACHE_KEY = 'tl_hf_models_cache'
-const HF_CACHE_TTL = 12 * 60 * 60 * 1000 // 6h — HF's download rankings don't move fast enough to justify refetching every visit
+const HF_CACHE_TTL = 12 * 60 * 60 * 1000
 
 /**
  * Pulls the most-downloaded text-generation models from Hugging Face's
@@ -122,7 +117,12 @@ export async function requestModel(apiUrl, modelName, minutes) {
     const res = await fetch(`${apiUrl}/v1/models/request`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: modelName, minutes }),
+      body: JSON.stringify({ 
+        hf_name: modelName,
+        model_type: "chat",
+        time: minutes,
+        payment: 0
+      }),
       signal: withTimeout(10000),
     })
     const data = await res.json().catch(() => ({}))

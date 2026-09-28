@@ -68,6 +68,13 @@ const Hero = () => {
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-3 mt-9 animate-[tl-fade-up_0.7s_ease-out_0.15s_both]">
+          <a href="/app">
+            <button className="group flex items-center gap-2 px-6 py-3 bg-[#4FD8C4] hover:bg-[#6EE2D1] text-[#0A0D13] font-medium rounded-full transition-all">
+              Launch App
+              <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </a>
+
           <a href="/docs" target="_blank" rel="noopener noreferrer">
             <button className="group flex items-center gap-2 px-6 py-3 bg-[#EDEFF4] hover:bg-white text-[#0A0D13] font-medium rounded-full transition-all">
               Read the docs

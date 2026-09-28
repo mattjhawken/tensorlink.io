@@ -191,7 +191,7 @@ const Navbar = () => {
               >
                 {nav.title}
               </a>
-          ) : nav.title == "Dashboard" ? (
+          ) : nav.title == "Launch App" ? (
               <a href={nav.link} className="group relative inline-block rounded-lg">
                 {/* optional soft glow, only shows on hover */}
                 <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-purple-500 via-blue-500 to-pink-500 blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-300"></span>
