@@ -86,7 +86,7 @@ export async function fetchModels({ apiUrl, nodeUrl, nodeConnected }) {
     const res = await fetch(`${base}/v1/models/available`, { signal: withTimeout() })
     if (!res.ok) throw new Error(`Failed to load models (${res.status})`)
     const data = await res.json()
-    const list = Array.isArray(data) ? data : data.models || data.data || []
+    const list = Array.isArray(data) ? data : data.active_models || data.models || data.data || []
     return list.map((m) => (typeof m === 'string' ? { id: m, name: m } : { id: m.id ?? m.name, name: m.name ?? m.id, requires_tensorlink: !!m.requires_tensorlink }))
   } catch (err) {
     console.warn('fetchModels failed, using fallback list:', err)
