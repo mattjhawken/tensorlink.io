@@ -11,12 +11,9 @@ function formatCount(n) {
 }
 
 /**
- * Scrollable, searchable list of models pulled from two sources — the
+ * Scrollable, searchable list of models pulled from two sources: the
  * Tensorlink network's own demand stats, and Hugging Face's public
- * download-ranked model list — so picking a model to use or request
- * doesn't require already knowing an exact HF model ID. Clicking a row
- * calls onPick(modelId); a manual text field for typing an arbitrary ID
- * is left to the caller, alongside this component.
+ * download-ranked model list.
  */
 export default function ModelBrowser({ apiUrl, onPick, selectedId }) {
   const [tab, setTab] = useState('tensorlink')

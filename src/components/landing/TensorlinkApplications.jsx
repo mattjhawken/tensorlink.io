@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Network, DollarSign, Bot, Sparkles, Zap } from "lucide-react";
+import { Shield, Network, DollarSign, Bot, Sparkles, EyeOff } from "lucide-react";
 import useReveal from "../hooks/useReveal";
 
 const features = [
@@ -32,7 +32,7 @@ const features = [
     title: "Ship an app, skip the server bill",
     description:
       "Build chatbots and AI features on public network compute through a familiar API. No infrastructure to provision or maintain.",
-    accent: "#4FD8C4",
+    accent: "#F2A65A",
     icon: Bot,
   },
   {
@@ -40,16 +40,16 @@ const features = [
     title: "Experiment past your hardware's limits",
     description:
       "Borrow compute from the network to try larger models and architectures than your own setup could handle alone.",
-    accent: "#A78BFA",
+    accent: "#4FD8C4",
     icon: Sparkles,
   },
   {
-    id: "agents",
-    title: "Let agents scale with the job",
+    id: "hybrid",
+    title: "Scale compute while staying private",
     description:
-      "Deploy autonomous, multi-step systems that pull additional compute from the network as the work demands it.",
-    accent: "#F2A65A",
-    icon: Zap,
+      "Keep your model's input and output layers on your own hardware and send only obfuscated intermediate data to the network. Use distributed compute without exposing your raw prompts or responses.",
+    accent: "#A78BFA",
+    icon: EyeOff,
   },
 ];
 
@@ -71,7 +71,7 @@ const TensorlinkApplications = () => {
         {/* Header */}
         <div className="max-w-2xl mx-auto text-center">
           <span className="font-['JetBrains_Mono'] text-[11px] tracking-[0.25em] uppercase text-[#A78BFA]">
-            applications
+            Use-cases
           </span>
 
           <h2 className="font-['Space_Grotesk'] font-bold text-4xl sm:text-5xl text-[#EDEFF4] leading-tight mt-3">

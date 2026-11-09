@@ -3,6 +3,7 @@ import Example from "./Example";
 import Hero from "./Hero.jsx";
 import ToPortal from "./ToPortal.jsx";
 import TensorlinkApplications from "./TensorlinkApplications.jsx";
+import DataPrivacy from "./DataPrivacy.jsx";
 import { Helmet } from "react-helmet-async";
 
 const TensorLinkLanding = ({ activeMenu }) => {
@@ -51,8 +52,9 @@ const TensorLinkLanding = ({ activeMenu }) => {
       <div className={`z-20 min-h-screen flex-col ${styles.flexCenter} min-w-full`}>
         <div className="z-10 flex-col min-w-full">
           <Hero activeMenu={activeMenu} />
-          <TensorlinkApplications />
+          <DataPrivacy />
           <Example activeMenu={activeMenu} />
+          <TensorlinkApplications />
           <ToPortal />
         </div>
       </div>

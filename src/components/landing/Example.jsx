@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import Prism from "prismjs";
 import "prismjs/themes/prism-tomorrow.css";
 import "prismjs/components/prism-javascript";
 import "prismjs/components/prism-python";
 import "prismjs/components/prism-json";
+import "prismjs/components/prism-bash";
 import useReveal from "../hooks/useReveal";
 
 const examples = [
@@ -14,7 +16,7 @@ const examples = [
     title: "Call the network like any other API",
     description:
       "Point any OpenAI-compatible client at our endpoint and start generating. No API keys to manage, no infrastructure to provision.",
-    link: { label: "View API docs", href: "docs/api" },
+    link: { label: "View API docs", href: "/docs/api" },
     code: `const response = await fetch(
   "https://tensorlink.ddns.net/tensorlink/v1/chat/completions",
   {
@@ -28,13 +30,13 @@ const examples = [
       ],
       max_tokens: 256,
       temperature: 0.7,
-      stream: true
+      stream: false
     })
   }
 );
 
 const result = await response.json();
-console.log(result);`,
+console.log(result.choices[0].message.content);`,
   },
   {
     id: "pytorch",
@@ -43,13 +45,13 @@ console.log(result);`,
     title: "Drop into PyTorch for full control",
     description:
       "Wrap any Hugging Face model in DistributedModel to shard it across the network, then train or run inference like any other PyTorch model.",
-    link: { label: "Browse the library", href: "https://github.com/smartnodes-lab/tensorlink" },
-    code: `from tensorlink import DistributedModel
+    link: { label: "Browse the library", href: "https://github.com/tensorlink-lab/tensorlink" },
+    code: `from tensorlink.ml import DistributedModel
 
 TRAIN = True
 
 model = DistributedModel(
-    "Qwen/Qwen3-14B",
+    model="Qwen/Qwen3-14B",
     training=TRAIN,
 )
 
@@ -63,29 +65,50 @@ if TRAIN:
   {
     id: "node",
     label: "Node",
-    language: "json",
-    title: "Turn your machine into a node",
+    language: "bash",
+    title: "Run your own private AI server",
     description:
-      "Drop this config next to the node binary to join the public network and start earning rewards from your idle GPU.",
-    link: { label: "Download node binaries", href: "docs/node" },
-    code: `{
-  "node": {
-    "name": "my-node",
-    "device": "cuda:0",
-    "public": true
-  },
-  "network": {
-    "endpoint": "wss://tensorlink.ddns.net/join",
-    "port": 8443
-  },
-  "rewards": {
-    "wallet": "0xYourWalletAddress"
-  }
-}`,
+      "Download the node, start it, and your own hardware serves an OpenAI-compatible API. Queries are routed only to machines you control, so your prompts stay yours.",
+    link: { label: "Set up your node", href: "/docs/nodes" },
+    note: {
+      text: "Have a GPU sitting idle? Run the same node as a public worker and earn rewards.",
+      label: "Start earning",
+      href: "/docs/mining",
+    },
+    code: `# 1. Download the latest tensorlink-node release
+#    https://github.com/tensorlink-lab/tensorlink/releases
+
+# 2. Edit config.json to run in private mode (see the node docs)
+
+# 3. Start your node
+./run-node.sh
+
+# 4. Talk to it from any OpenAI-compatible client
+curl http://localhost:64747/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "messages": [{ "role": "user", "content": "Hello from my own hardware!" }],
+    "stream": false
+  }'`,
   },
 ];
 
-const CodePanel = ({ label, language, code, onCopy, copied }) => (
+const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// Internal paths go through the router (keeps the page transitions); everything else is a normal link.
+const ExampleLink = ({ href, children, ...props }) =>
+  href.startsWith("/") ? (
+    <Link to={href} {...props}>
+      {children}
+    </Link>
+  ) : (
+    <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+      {children}
+    </a>
+  );
+
+const CodePanel = ({ label, language, html, onCopy, copied }) => (
   <div className="bg-[#0D1117] rounded-xl overflow-hidden border border-white/10 hover:border-[#4FD8C4]/40 transition-colors flex flex-col shadow-[0_0_40px_-15px_rgba(0,0,0,0.6)] h-full">
     <div className="px-4 py-3 flex items-center justify-between border-b border-white/10">
       <div className="flex items-center gap-1.5">
@@ -100,6 +123,7 @@ const CodePanel = ({ label, language, code, onCopy, copied }) => (
         onClick={onCopy}
         className="text-[#6B7280] hover:text-white transition-colors"
         title="Copy code"
+        aria-label="Copy code"
       >
         {copied ? (
           <svg className="w-4 h-4 text-[#4FD8C4]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,9 +137,11 @@ const CodePanel = ({ label, language, code, onCopy, copied }) => (
       </button>
     </div>
     <pre className="p-5 overflow-x-auto flex-grow max-h-[360px] !text-[10px] sm:!text-[12px] !bg-[#0D1117]">
-      <code className={`language-${language} font-['JetBrains_Mono'] !text-[10px] sm:!text-[12px] !bg-[#0D1117]`}>
-        {code}
-      </code>
+      {/* Highlighted up front (no effect), so switching tabs never flashes unstyled code. */}
+      <code
+        className={`language-${language} font-['JetBrains_Mono'] !text-[10px] sm:!text-[12px] !bg-[#0D1117]`}
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     </pre>
   </div>
 );
@@ -127,14 +153,19 @@ const Example = () => {
 
   const active = examples[activeIndex];
 
-  useEffect(() => {
-    Prism.highlightAll();
-  }, [activeIndex]);
+  const highlighted = useMemo(() => {
+    const grammar = Prism.languages[active.language];
+    return grammar ? Prism.highlight(active.code, grammar, active.language) : escapeHtml(active.code);
+  }, [active]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(active.code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(active.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard blocked (e.g. insecure context): nothing useful to do
+    }
   };
 
   const selectExample = (index) => {
@@ -160,15 +191,19 @@ const Example = () => {
           </h2>
           <p className="text-[#9AA2B4] text-sm sm:text-base mt-3 max-w-xl mx-auto">
             Talk to the network over an OpenAI-compatible endpoint, drop
-            straight into PyTorch, or spin up your own node.
+            straight into PyTorch, or run your own private AI server.
           </p>
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2 mb-8" role="tablist" aria-label="Examples">
           {examples.map((ex, i) => (
             <button
               key={ex.id}
+              role="tab"
+              id={`example-tab-${ex.id}`}
+              aria-selected={i === activeIndex}
+              aria-controls="example-panel"
               onClick={() => selectExample(i)}
               className="px-4 py-2 rounded-full font-['JetBrains_Mono'] text-xs tracking-[0.15em] uppercase transition-all border"
               style={{
@@ -182,7 +217,12 @@ const Example = () => {
           ))}
         </div>
 
-        <div className="grid md:grid-cols-[280px_1fr] gap-6 items-start">
+        <div
+          id="example-panel"
+          role="tabpanel"
+          aria-labelledby={`example-tab-${active.id}`}
+          className="grid md:grid-cols-[280px_1fr] gap-6 items-start"
+        >
           {/* Side description, swaps with the active example */}
           <div key={active.id} className="animate-[tl-fade-up_0.4s_ease-out]">
             <h3 className="font-['Space_Grotesk'] font-semibold text-xl text-[#EDEFF4]">
@@ -191,19 +231,31 @@ const Example = () => {
             <p className="mt-3 text-sm leading-relaxed text-[#9AA2B4]">
               {active.description}
             </p>
-            <a
+            <ExampleLink
               href={active.link.href}
               className="inline-flex items-center gap-1.5 mt-5 text-sm font-medium text-[#4FD8C4] hover:text-[#6FE8D6] transition-colors"
             >
               {active.link.label}
               <span aria-hidden="true">&rarr;</span>
-            </a>
+            </ExampleLink>
+
+            {active.note && (
+              <p className="mt-6 pt-5 border-t border-white/10 text-xs leading-relaxed text-[#6B7280]">
+                {active.note.text}{" "}
+                <ExampleLink
+                  href={active.note.href}
+                  className="text-[#9AA2B4] hover:text-[#4FD8C4] underline underline-offset-2 transition-colors"
+                >
+                  {active.note.label}
+                </ExampleLink>
+              </p>
+            )}
           </div>
 
           <CodePanel
             label={active.label}
             language={active.language}
-            code={active.code}
+            html={highlighted}
             onCopy={copyToClipboard}
             copied={copied}
           />

@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MdAdd, MdDelete, MdSettings, MdHome, MdMenu, MdSearch, MdChatBubbleOutline, MdMenuBook } from 'react-icons/md'
-import Sidebar from '../../components/navigation/Sidebar.jsx';
+import {
+  MdAdd,
+  MdDelete,
+  MdMenu,
+  MdSearch,
+  MdMoreHoriz,
+  MdPushPin,
+  MdOutlinePushPin,
+  MdContentCopy,
+  MdEdit,
+  MdCheck,
+} from 'react-icons/md'
+import SidebarShell from '../../components/navigation/SidebarShell.jsx'
 import { useStore } from './store.jsx'
-import { checkApiAlive, checkAlive } from './api.js'
-import { StatusDot, IconButton } from './ui.jsx'
-import Chat from './Chat.jsx'
-import Home from './Home.jsx'
-import Settings from './Settings.jsx'
+import { IconButton } from './ui.jsx'
+import { blurFade } from '../../transitions'
+import ConnectionMenu from './ConnectionMenu.jsx'
+import { ROUTES } from './routes.js'
+import { useRagIndexer } from './rag/useRag.js'
 
-const POLL_INTERVAL_MS = 60_000
+const MENU_WIDTH = 190
 
 function formatDate(ms) {
   if (!ms) return ''
@@ -22,80 +32,64 @@ function formatDate(ms) {
     : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-function NodeStatusPill({ onOpenSettings }) {
-  const { apiUrl, nodeUrl } = useStore()
-  const [apiStatus, setApiStatus] = useState('checking')
-  const [nodeStatus, setNodeStatus] = useState('disconnected')
+function chatToText(chat) {
+  return chat.messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => `${m.role === 'user' ? 'You' : 'Assistant'}: ${m.content}`)
+    .join('\n\n')
+}
 
-  const poll = useCallback(async () => {
-    setApiStatus('checking')
-    setApiStatus((await checkApiAlive(apiUrl)) ? 'connected' : 'disconnected')
-    if (nodeUrl) {
-      setNodeStatus('checking')
-      setNodeStatus((await checkAlive(nodeUrl)) ? 'connected' : 'disconnected')
-    } else {
-      setNodeStatus('disconnected')
-    }
-  }, [apiUrl, nodeUrl])
-
-  useEffect(() => {
-    poll()
-    const id = setInterval(poll, POLL_INTERVAL_MS)
-    return () => clearInterval(id)
-  }, [poll])
-
-  const overall = apiStatus === 'connected' || nodeStatus === 'connected' ? 'connected' : apiStatus === 'checking' || nodeStatus === 'checking' ? 'checking' : 'disconnected'
-  const label = nodeUrl && nodeStatus === 'connected' ? 'Private node' : overall === 'connected' ? 'Connected' : overall === 'checking' ? 'Checking…' : 'Offline'
-
+function MenuItem({ icon: Icon, label, onClick, hint, danger, armed }) {
   return (
     <button
-      onClick={onOpenSettings}
-      className="flex items-center gap-2 rounded-full border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-[#9AA2B4] transition-colors hover:border-gray-300 dark:hover:border-white/20"
-      title="Connection status — click to manage in Settings"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors ${
+        armed
+          ? 'bg-red-400/15 text-red-300 ring-1 ring-red-400/40'
+          : danger
+            ? 'text-red-400 hover:bg-red-400/10'
+            : 'text-[#C5CAD6] hover:bg-white/[0.06]'
+      }`}
     >
-      <StatusDot status={overall} />
-      <span className="hidden sm:inline">{label}</span>
+      <Icon size={15} className="shrink-0" />
+      <span className="flex-1">{label}</span>
+      {hint && (
+        <span
+          className={`rounded border px-1.5 py-0.5 text-[10px] ${
+            armed ? 'border-red-400/30 bg-red-400/15 text-red-300' : 'border-white/10 bg-white/5 font-mono text-[#5B6272]'
+          }`}
+        >
+          {hint}
+        </span>
+      )}
     </button>
   )
 }
 
-// Segmented control switching the sidebar between chat history and the
-// docs nav. Kept as its own component since both tab buttons share the
-// same active/inactive styling logic.
-function SidebarTabs({ tab, onChange }) {
-  const tabs = [
-    { id: 'chats', label: 'Chats', icon: MdChatBubbleOutline },
-    { id: 'docs', label: 'Home', icon: MdMenuBook },
-  ]
-  return (
-    <div className="mx-3 mb-3 flex rounded-lg border border-white/10 bg-white/[0.02] p-1">
-      {tabs.map(({ id, label, icon: Icon }) => (
-        <button
-          key={id}
-          onClick={() => onChange(id)}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
-            tab === id ? 'bg-[#4FD8C4]/15 text-[#4FD8C4]' : 'text-[#8B93A7] hover:text-[#EDEFF4]'
-          }`}
-        >
-          <Icon size={14} />
-          {label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
 export default function ChatShell() {
-  const { chats, activeChatId, createChat, deleteChat, selectChat, view, setView } = useStore()
+  const { chats, activeChatId, createChat, deleteChat, selectChat, renameChat, togglePinChat, view, setView, setDashSection } = useStore()
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 640)
   const [sidebarTab, setSidebarTab] = useState('chats')
   const [searchQuery, setSearchQuery] = useState('')
-  const [hoveredChatId, setHoveredChatId] = useState(null)
+  const [menu, setMenu] = useState(null)
   const [pendingDeleteId, setPendingDeleteId] = useState(null)
+  const [copiedId, setCopiedId] = useState(null)
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameDraft, setRenameDraft] = useState('')
   const contentRef = useRef(null)
+  const menuRef = useRef(null)
+  const cancelRenameRef = useRef(false)
+
+  useRagIndexer() // keeps the chat-history search index in sync (no-op unless enabled)
 
   const resetScroll = useCallback(() => {
     contentRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  const closeMenu = useCallback(() => {
+    setMenu(null)
+    setPendingDeleteId(null)
+    setCopiedId(null)
   }, [])
 
   const handleNewChat = useCallback(() => {
@@ -105,6 +99,20 @@ export default function ChatShell() {
     setSidebarTab('chats')
     if (window.innerWidth < 640) setSidebarOpen(false)
   }, [createChat, resetScroll, setView])
+
+  const openDashboard = useCallback(
+    (section) => {
+      if (section) setDashSection(section)
+      setView('dashboard')
+    },
+    [setDashSection, setView]
+  )
+
+  // The dashboard launches pages; chat starts a fresh conversation, everything else just opens.
+  const handleLaunch = useCallback(
+    (id) => (id === 'chat' ? handleNewChat() : setView(id)),
+    [handleNewChat, setView]
+  )
 
   const handleDeleteChat = useCallback(
     (id) => {
@@ -124,46 +132,111 @@ export default function ChatShell() {
     [selectChat, setView, resetScroll]
   )
 
+  // Pinned chats float to the top; within each group, newest edit first.
   const filteredChats = useMemo(() => {
-    const sorted = [...chats].sort((a, b) => (b.lastEditTime || 0) - (a.lastEditTime || 0))
+    const sorted = [...chats].sort((a, b) => {
+      if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1
+      return (b.lastEditTime || 0) - (a.lastEditTime || 0)
+    })
     if (!searchQuery.trim()) return sorted
     const q = searchQuery.toLowerCase()
     return sorted.filter((c) => c.title.toLowerCase().includes(q))
   }, [chats, searchQuery])
 
-  // Keyboard shortcut: hover a chat row, press D to arm it for deletion
-  // (a small "D" badge shows this is available), then Enter to confirm —
-  // no mouse trip to the delete icon + confirm dialog required. After a
-  // delete, the "cursor" moves to the chat that slides into the same
-  // spot, so pressing D -> Enter again immediately chain-deletes down
-  // the list.
-  useEffect(() => {
-    const onKeyDown = (e) => {
-      const tag = document.activeElement?.tagName
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+  const menuChat = menu ? chats.find((c) => c.id === menu.chatId) : null
+  const Page = (ROUTES.find((r) => r.id === view) ?? ROUTES.find((r) => r.id === 'dashboard')).component
 
+  const openMenu = (e, chatId) => {
+    e.stopPropagation()
+    if (menu?.chatId === chatId) {
+      closeMenu()
+      return
+    }
+    const rect = e.currentTarget.getBoundingClientRect()
+    setPendingDeleteId(null)
+    setCopiedId(null)
+    setMenu({ chatId, top: rect.bottom + 4, left: Math.max(8, rect.right - MENU_WIDTH) })
+  }
+
+  const startRename = (chat) => {
+    closeMenu()
+    cancelRenameRef.current = false
+    setRenameDraft(chat.title || '')
+    setRenamingId(chat.id)
+  }
+
+  const commitRename = (id) => {
+    if (cancelRenameRef.current) {
+      cancelRenameRef.current = false
+      return
+    }
+    const title = renameDraft.trim()
+    if (title) renameChat(id, title)
+    setRenamingId(null)
+  }
+
+  const handleCopyChat = async (chat) => {
+    try {
+      await navigator.clipboard.writeText(chatToText(chat))
+      setCopiedId(chat.id)
+      setTimeout(closeMenu, 900)
+    } catch (err) {
+      console.warn('Copy failed:', err)
+      closeMenu()
+    }
+  }
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('tl_used_app', '1')
+    } catch {
+    }
+  }, [])
+
+  // While the menu is open: D arms the delete item, Enter confirms it,
+  // Esc backs out one level (disarm first, then close the menu).
+  useEffect(() => {
+    if (!menu) return
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        if (pendingDeleteId) setPendingDeleteId(null)
+        else closeMenu()
+        return
+      }
       if (pendingDeleteId) {
         if (e.key === 'Enter') {
-          e.preventDefault()
-          const idx = filteredChats.findIndex((c) => c.id === pendingDeleteId)
+          e.preventDefault() // also stops Enter from re-clicking the focused button
           deleteChat(pendingDeleteId)
-          const next = filteredChats[idx + 1] || filteredChats[idx - 1] || null
-          setHoveredChatId(next?.id || null)
-          setPendingDeleteId(null)
-        } else if (e.key === 'Escape') {
-          setPendingDeleteId(null)
+          closeMenu()
         }
         return
       }
-
-      if ((e.key === 'd' || e.key === 'D') && hoveredChatId) {
+      if (e.key === 'd' || e.key === 'D') {
         e.preventDefault()
-        setPendingDeleteId(hoveredChatId)
+        setPendingDeleteId(menu.chatId)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [pendingDeleteId, hoveredChatId, filteredChats, deleteChat])
+  }, [menu, pendingDeleteId, deleteChat, closeMenu])
+
+  // Click outside the menu closes it.
+  useEffect(() => {
+    if (!menu) return
+    const onMouseDown = (e) => {
+      if (menuRef.current?.contains(e.target)) return
+      if (e.target.closest?.('[data-chat-menu-trigger]')) return
+      closeMenu()
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [menu, closeMenu])
+
+  // If the chat disappears out from under an open menu, close it.
+  useEffect(() => {
+    if (menu && !menuChat) closeMenu()
+  }, [menu, menuChat, closeMenu])
 
   return (
     <div className="h-full w-full flex overflow-hidden bg-[#0A0D13] text-[#EDEFF4] relative">
@@ -171,21 +244,16 @@ export default function ChatShell() {
         <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/60 z-30 sm:hidden" />
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed z-40 h-full w-[270px] shrink-0 overflow-y-auto border-r border-white/10 bg-[#0d1017] transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="px-4 pt-5 pb-4">
-          <Link to="/" className="text-lg font-bold text-[#EDEFF4] hover:text-[#4FD8C4] transition-colors">
-            tensorlink.io
-          </Link>
-        </div>
-
-        <SidebarTabs tab={sidebarTab} onChange={setSidebarTab} />
-
-        {sidebarTab === 'chats' ? (
+      {/* Sidebar (shared with the landing page layout) */}
+      <SidebarShell
+        open={sidebarOpen}
+        tab={sidebarTab}
+        onTabChange={(t) => {
+          closeMenu()
+          setSidebarTab(t)
+        }}
+        onScroll={() => menu && closeMenu()}
+        chatsContent={
           <>
             <div className="flex items-center justify-between gap-2 px-3 pb-3">
               <div className="flex gap-1.5">
@@ -202,12 +270,16 @@ export default function ChatShell() {
                 </IconButton>
               </div>
               <div className="flex gap-1.5">
-                <IconButton onClick={() => setView(view === 'settings' ? 'chat' : 'settings')} title="Settings" className={view === 'settings' ? 'text-[#4FD8C4] border-[#4FD8C4]/40' : ''}>
-                  <MdSettings size={16} />
-                </IconButton>
-                <IconButton onClick={() => setView(view === 'home' ? 'chat' : 'home')} title="Home" className={view === 'home' ? 'text-[#4FD8C4] border-[#4FD8C4]/40' : ''}>
-                  <MdHome size={16} />
-                </IconButton>
+                {ROUTES.filter((r) => r.nav).map((r) => (
+                  <IconButton
+                    key={r.id}
+                    onClick={() => setView(view === r.id ? 'chat' : r.id)}
+                    title={r.label}
+                    className={view === r.id ? 'text-[#4FD8C4] border-[#4FD8C4]/40' : ''}
+                  >
+                    <r.icon size={16} />
+                  </IconButton>
+                ))}
               </div>
             </div>
 
@@ -233,67 +305,127 @@ export default function ChatShell() {
                 </p>
               ) : (
                 <ul className="space-y-0.5">
-                  {filteredChats.map((chat) => (
-                    <li
-                      key={chat.id}
-                      onMouseEnter={() => setHoveredChatId(chat.id)}
-                      onMouseLeave={() => {
-                        setHoveredChatId((id) => (id === chat.id ? null : id))
-                        setPendingDeleteId((id) => (id === chat.id ? null : id))
-                      }}
-                    >
-                      <button
-                        onClick={() => handleSelectChat(chat.id)}
-                        className={`w-full text-left px-2.5 py-2 rounded-lg transition-colors ${
-                          pendingDeleteId === chat.id
-                            ? 'ring-1 ring-red-400/50 bg-red-400/[0.06]'
-                            : chat.id === activeChatId && view === 'chat'
-                              ? 'bg-white/10'
-                              : 'hover:bg-white/5'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate text-[#EDEFF4]">{chat.title || 'New chat'}</p>
-                            <p className="text-xs text-[#5B6272]">{formatDate(chat.lastEditTime)}</p>
+                  {filteredChats.map((chat) => {
+                    const menuOpen = menu?.chatId === chat.id
+                    return (
+                      <li key={chat.id} className="group relative">
+                        {renamingId === chat.id ? (
+                          <div className="px-1.5 py-1.5">
+                            <input
+                              autoFocus
+                              value={renameDraft}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => setRenameDraft(e.target.value)}
+                              onBlur={() => commitRename(chat.id)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  commitRename(chat.id)
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault()
+                                  cancelRenameRef.current = true
+                                  setRenamingId(null)
+                                }
+                              }}
+                              maxLength={80}
+                              className="w-full rounded-md border border-[#4FD8C4]/40 bg-white/[0.04] px-2 py-1 text-sm text-[#EDEFF4] focus:outline-none focus:ring-2 focus:ring-[#4FD8C4]/40"
+                            />
                           </div>
-                          {pendingDeleteId === chat.id ? (
-                            <span className="shrink-0 rounded-md border border-red-400/30 bg-red-400/15 px-1.5 py-0.5 text-[10px] font-medium text-red-300">
-                              Enter to delete
-                            </span>
-                          ) : (
-                            hoveredChatId === chat.id && (
-                              <span className="shrink-0 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-[10px] font-mono text-[#5B6272]">
-                                D
-                              </span>
-                            )
-                          )}
-                        </div>
-                      </button>
-                    </li>
-                  ))}
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleSelectChat(chat.id)}
+                              className={`w-full text-left px-2.5 py-2 pr-9 rounded-lg transition-colors ${
+                                pendingDeleteId === chat.id
+                                  ? 'ring-1 ring-red-400/50 bg-red-400/[0.06]'
+                                  : chat.id === activeChatId && view === 'chat'
+                                    ? 'bg-white/10'
+                                    : menuOpen
+                                      ? 'bg-white/5'
+                                      : 'hover:bg-white/5'
+                              }`}
+                            >
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {chat.pinned && <MdPushPin size={12} className="shrink-0 text-[#4FD8C4]" />}
+                                <p className="text-sm font-medium truncate text-[#EDEFF4]">{chat.title || 'New chat'}</p>
+                              </div>
+                              <p className="text-xs text-[#5B6272]">{formatDate(chat.lastEditTime)}</p>
+                            </button>
+                            <button
+                              data-chat-menu-trigger
+                              onClick={(e) => openMenu(e, chat.id)}
+                              title="Chat options"
+                              aria-haspopup="menu"
+                              aria-expanded={menuOpen}
+                              className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#8B93A7] transition-opacity hover:bg-white/10 hover:text-[#EDEFF4] focus:opacity-100 ${
+                                menuOpen ? 'opacity-100 bg-white/10 text-[#EDEFF4]' : 'sm:opacity-0 sm:group-hover:opacity-100'
+                              }`}
+                            >
+                              <MdMoreHoriz size={18} />
+                            </button>
+                          </>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>
           </>
-        ) : (
-          <Sidebar embedded />
-        )}
-      </aside>
+        }
+      />
+
+      {/* Chat options menu (fixed-position) */}
+      {menu && menuChat && (
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{ top: menu.top, left: menu.left, width: MENU_WIDTH }}
+          className="fixed z-50 rounded-lg border border-white/10 bg-[#12151c] p-1.5 shadow-xl shadow-black/40"
+        >
+          <MenuItem
+            icon={menuChat.pinned ? MdPushPin : MdOutlinePushPin}
+            label={menuChat.pinned ? 'Unpin' : 'Pin'}
+            onClick={() => {
+              togglePinChat(menuChat.id)
+              closeMenu()
+            }}
+          />
+          <MenuItem
+            icon={copiedId === menuChat.id ? MdCheck : MdContentCopy}
+            label={copiedId === menuChat.id ? 'Copied!' : 'Copy chat'}
+            onClick={() => handleCopyChat(menuChat)}
+          />
+          <MenuItem icon={MdEdit} label="Rename" onClick={() => startRename(menuChat)} />
+          <div className="my-1 h-px bg-white/10" />
+          <MenuItem
+            icon={MdDelete}
+            label={pendingDeleteId === menuChat.id ? 'Delete?' : 'Delete'}
+            danger
+            armed={pendingDeleteId === menuChat.id}
+            hint={pendingDeleteId === menuChat.id ? 'Enter ↵' : 'D'}
+            onClick={() => {
+              closeMenu()
+              handleDeleteChat(menuChat.id)
+            }}
+          />
+        </div>
+      )}
 
       {/* Main content */}
-      <div
+      <motion.div
+        {...blurFade}
         ref={contentRef}
         className={`flex-1 h-full overflow-y-auto relative transition-[margin] duration-300 ${sidebarOpen ? 'sm:ml-[270px]' : 'ml-0'}`}
       >
-        <div className="flex items-center justify-between gap-3 p-3 border-b border-white/10 bg-[#0A0D13] sticky top-0 z-10">
+        <div className="flex items-center justify-between gap-3 p-1 sm:p-2 border-b border-white/10 bg-[#0A0D13] sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <IconButton onClick={() => setSidebarOpen((o) => !o)} title="Toggle sidebar">
               <MdMenu size={16} />
             </IconButton>
             <span className="text-sm font-medium text-[#9AA2B4]">tensorlink</span>
           </div>
-          <NodeStatusPill onOpenSettings={() => setView('settings')} />
+          <ConnectionMenu onOpenDashboard={openDashboard} />
         </div>
 
         <AnimatePresence mode="wait">
@@ -304,12 +436,10 @@ export default function ChatShell() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.2 }}
           >
-            {view === 'home' && <Home onStartChat={handleNewChat} onNavigateToSettings={() => setView('settings')} />}
-            {view === 'settings' && <Settings onBack={() => setView('chat')} />}
-            {view === 'chat' && <Chat onNavigateToSettings={() => setView('settings')} />}
+            <Page routes={ROUTES} onLaunch={handleLaunch} onNavigateToSettings={() => openDashboard('chat')} />
           </motion.div>
         </AnimatePresence>
-      </div>
+      </motion.div>
     </div>
   )
 }

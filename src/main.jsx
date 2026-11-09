@@ -10,6 +10,19 @@ import { ContextProvider } from "./contexts/contextProvider.jsx"
 // keys off of, so flipping this later (e.g. a future theme toggle) just works.
 document.documentElement.classList.add('dark')
 
+try {
+  const { pathname, search } = window.location
+  if (
+    pathname === '/' &&
+    !new URLSearchParams(search).has('landing') &&
+    localStorage.getItem('tl_used_app') === '1'
+  ) {
+    window.history.replaceState(null, '', '/app')
+  }
+} catch {
+  // storage unavailable, so show the landing page as normal
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <StoreProvider>

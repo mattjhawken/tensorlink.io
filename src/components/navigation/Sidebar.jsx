@@ -6,7 +6,11 @@ import { sideLinks } from "../../constants";
 
 const OPEN_GROUPS_KEY = "tensorlink_sidebar_open_groups";
 
-const Sidebar = ({ open, close, embedded = false }) => {
+// The landing page lives at /home ("/" only forwards returning users to /app),
+// so any sidebar entry that resolves to the root goes to /home instead.
+const toPath = (path) => (path === "/" || path === "" ? "/home" : path);
+
+const Sidebar = () => {
     const [openMenuId, setOpenMenuId] = useState(() => {
         return localStorage.getItem("tensorlink_sidebar_open");
     });  // Track which menu is open
@@ -28,7 +32,11 @@ const Sidebar = ({ open, close, embedded = false }) => {
 
     const groupMatchesPath = (item, pathname) => {
         return item.links.some((link) => {
-            const linkMatches = pathname === `/${link.id}` || pathname.startsWith(`/${link.id}/`);
+            const target = toPath(`/${link.id}`);
+            const linkMatches =
+                pathname === target ||
+                pathname.startsWith(`${target}/`) ||
+                (target === "/home" && pathname === "/");
             const sublinkMatches =
                 link.sublinks &&
                 link.sublinks.some((sub) => pathname.startsWith(`/${link.id}/${sub.id}`));
@@ -67,13 +75,8 @@ const Sidebar = ({ open, close, embedded = false }) => {
         }
     }, [openMenuId]);
 
-    const containerClassName = embedded
-        ? "w-full h-full overflow-y-auto overflow-x-hidden"
-        : "fixed inset-y-0 left-0 w-[240px] bg-slate-100 dark:bg-zinc-900 overflow-y-auto overflow-x-hidden border-r border-gray-500";
-    const containerStyle = embedded ? undefined : { zIndex: 1000000 };
-
     return (
-        <div className={containerClassName} style={containerStyle}>
+        <div className="w-full overflow-x-hidden">
             <div className="px-3 pt-6 pb-10 ml-1">
                 {sideLinks.map((item) => {
                     const isGroupOpen = openGroups.has(item.title);
@@ -110,7 +113,7 @@ const Sidebar = ({ open, close, embedded = false }) => {
                                     } else if (link.external) {
                                         window.location.href = link.id;
                                     } else {
-                                        navigate(`/${link.id}`);
+                                        navigate(toPath(`/${link.id}`));
                                     }
                                 }}                                
                             >

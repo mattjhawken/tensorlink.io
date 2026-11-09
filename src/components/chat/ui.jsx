@@ -1,8 +1,3 @@
-// Small shared building blocks so Chat/Home/Settings don't each reinvent
-// the same card, pill, and button styling. Kept intentionally tiny —
-// these are class-name helpers and a couple of trivial components, not a
-// component library.
-
 export const card =
   'rounded-2xl border border-gray-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] backdrop-blur-sm shadow-sm'
 
@@ -68,4 +63,34 @@ export function StatusDot({ status }) {
 
 export function Spinner({ className = 'h-8 w-8' }) {
   return <div className={`animate-spin rounded-full border-b-2 border-[#4FD8C4] ${className}`} />
+}
+
+export function Section({ label, accent, children }) {
+  return (
+    <div className={`${card} p-4 sm:p-6 mb-4`}>
+      <Eyebrow label={label} accent={accent} />
+      {children}
+    </div>
+  )
+}
+
+export function Toggle({ checked, onChange, label, description, disabled }) {
+  return (
+    <div className={`flex items-start justify-between gap-4 py-3 ${disabled ? 'opacity-50' : ''}`}>
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-[#EDEFF4]">{label}</p>
+        {description && <p className="mt-0.5 text-xs text-[#8B93A7]">{description}</p>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed ${checked ? 'bg-[#4FD8C4]' : 'bg-white/15'}`}
+      >
+        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
+      </button>
+    </div>
+  )
 }
