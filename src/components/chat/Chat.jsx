@@ -173,6 +173,9 @@ function MessageBubble({ message, index, isStreaming, onFeedback, onOpenChat }) 
   )
 }
 
+// Within this many px of the bottom counts as "following" the stream.
+const NEAR_BOTTOM_PX = 80
+
 const WELCOME = {
   id: 'welcome',
   role: 'system',
@@ -188,9 +191,23 @@ export default function Chat({ onNavigateToSettings }) {
   const [streamingIndex, setStreamingIndex] = useState(null)
   const [error, setError] = useState('')
   const textareaRef = useRef(null)
-  const endRef = useRef(null)
+  const scrollRef = useRef(null)
+  const stickToBottomRef = useRef(true)
+  const touchStartYRef = useRef(null)
   const abortControllerRef = useRef(null)
   const [pendingFeatures, setPendingFeatures] = useState({}) // toggles set before the first message creates a chat
+
+  const composerRef = useRef(null)
+  const [composerH, setComposerH] = useState(160)
+
+  useEffect(() => {
+    const el = composerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setComposerH(el.offsetHeight))
+    ro.observe(el)
+    setComposerH(el.offsetHeight)
+    return () => ro.disconnect()
+  }, [])
 
   const currentModel = models.find((m) => m.id === settings.model)
   const overrides = activeChat ? activeChat.features : pendingFeatures
@@ -219,9 +236,40 @@ export default function Chat({ onNavigateToSettings }) {
 
   const messages = activeChat ? activeChat.messages : [WELCOME]
 
+  // Follow the stream only while the user is "stuck" to the bottom.
+  // Scrolling up (wheel, touch, or scrollbar drag) un-sticks it so new
+  // tokens grow the message below the viewport without moving it;
+  // scrolling back near the bottom re-sticks. scrollTop is set directly
+  // (not smooth scrollIntoView) because a smooth-scroll animation fires
+  // scroll events that look like the user leaving the bottom.
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingIndex])
+    const el = scrollRef.current
+    if (el && stickToBottomRef.current) el.scrollTop = el.scrollHeight
+  }, [messages, streamingIndex, composerH])
+
+  useEffect(() => {
+    stickToBottomRef.current = true
+    const el = scrollRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [activeChatId])
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX
+  }
+  const handleWheel = (e) => {
+    if (e.deltaY < 0) stickToBottomRef.current = false
+  }
+  const handleTouchStart = (e) => {
+    touchStartYRef.current = e.touches[0]?.clientY ?? null
+  }
+  const handleTouchMove = (e) => {
+    const y = e.touches[0]?.clientY
+    // Finger moving down the screen = content scrolling up.
+    if (touchStartYRef.current !== null && y > touchStartYRef.current) stickToBottomRef.current = false
+    touchStartYRef.current = y ?? null
+  }
 
   useEffect(() => {
     textareaRef.current?.focus()
@@ -242,22 +290,12 @@ export default function Chat({ onNavigateToSettings }) {
     [activeChatId, updateMessage]
   )
 
-  const composerRef = useRef(null)
-  const [composerH, setComposerH] = useState(160)
-
-  useEffect(() => {
-    const el = composerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(() => setComposerH(el.offsetHeight))
-    ro.observe(el)
-    setComposerH(el.offsetHeight)
-    return () => ro.disconnect()
-  }, [])
-
   const handleSend = useCallback(async () => {
     const text = input.trim()
     if (!text || isSending) return
-    
+
+    stickToBottomRef.current = true // sending always jumps back to the live response
+
     let chatId = activeChatId
     if (!chatId) {
       chatId = createChat(pendingFeatures).id
@@ -350,6 +388,11 @@ export default function Chat({ onNavigateToSettings }) {
     <div className="relative h-[calc(100dvh-43px)] sm:h-[calc(100dvh-51px)]">
       {/* Messages: full height, scrolling behind the input, fading out from the input's top edge down */}
       <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         className="absolute inset-0 overflow-y-auto pt-4"
         style={{ paddingBottom: composerH + 16, WebkitMaskImage: fade, maskImage: fade }}
       >
@@ -373,7 +416,6 @@ export default function Chat({ onNavigateToSettings }) {
               </div>
             </div>
           )}
-          <div ref={endRef} />
         </div>
       </div>
 
